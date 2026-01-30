@@ -1,9 +1,9 @@
 # CoolSwap Task List
 
 ## Phase 1: Core Infrastructure
-[ ] Bridge Provider Abstraction - IBridgeProvider interface + DeBridgeProvider implementation
-[ ] Token Service - Fetch token lists from deBridge API, Token-2022 detection
-[ ] Solana RPC Utilities - Connection setup, transaction helpers, priority fee fetching
+[x] Bridge Provider Abstraction - IBridgeProvider interface + DeBridgeProvider implementation
+[x] Token Service - Fetch token lists from deBridge API, Token-2022 detection
+[x] Solana RPC Utilities - Connection setup, transaction helpers, priority fee fetching
 
 ## Phase 2: Wallet & Token Selection
 [ ] Wallet Integration - Replace stub with @solana/react-hooks, display address/balance

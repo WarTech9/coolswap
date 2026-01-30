@@ -36,3 +36,27 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 // Buffer polyfill for tests
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
+
+// Mock @solana/web3-compat Connection to prevent WebSocket issues in tests
+vi.mock('@solana/web3-compat', () => ({
+  Connection: vi.fn().mockImplementation(() => ({
+    getLatestBlockhash: vi.fn().mockResolvedValue({
+      blockhash: 'mock-blockhash-123',
+      lastValidBlockHeight: 12345,
+    }),
+    getAccountInfo: vi.fn().mockResolvedValue(null),
+    sendTransaction: vi.fn().mockResolvedValue('mock-signature-456'),
+    confirmTransaction: vi.fn().mockResolvedValue({ value: { err: null } }),
+    getRecentPrioritizationFees: vi.fn().mockResolvedValue([
+      { prioritizationFee: 1000 },
+      { prioritizationFee: 2000 },
+      { prioritizationFee: 1500 },
+    ]),
+  })),
+  PublicKey: vi.fn().mockImplementation((key: string) => ({
+    toString: () => key,
+    toBase58: () => key,
+    equals: (other: { toString: () => string }) => key === other.toString(),
+  })),
+  VersionedTransaction: vi.fn(),
+}));
