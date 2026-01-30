@@ -37,26 +37,80 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 
-// Mock @solana/web3-compat Connection to prevent WebSocket issues in tests
-vi.mock('@solana/web3-compat', () => ({
-  Connection: vi.fn().mockImplementation(() => ({
-    getLatestBlockhash: vi.fn().mockResolvedValue({
-      blockhash: 'mock-blockhash-123',
-      lastValidBlockHeight: 12345,
+// Mock @solana/client to prevent WebSocket issues in tests
+vi.mock('@solana/client', () => {
+  const mockRpc = {
+    getLatestBlockhash: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue({
+        value: { blockhash: 'mock-blockhash-123', lastValidBlockHeight: 12345 },
+      }),
     }),
-    getAccountInfo: vi.fn().mockResolvedValue(null),
-    sendTransaction: vi.fn().mockResolvedValue('mock-signature-456'),
-    confirmTransaction: vi.fn().mockResolvedValue({ value: { err: null } }),
-    getRecentPrioritizationFees: vi.fn().mockResolvedValue([
-      { prioritizationFee: 1000 },
-      { prioritizationFee: 2000 },
-      { prioritizationFee: 1500 },
-    ]),
-  })),
-  PublicKey: vi.fn().mockImplementation((key: string) => ({
-    toString: () => key,
-    toBase58: () => key,
-    equals: (other: { toString: () => string }) => key === other.toString(),
-  })),
-  VersionedTransaction: vi.fn(),
+    getSignatureStatuses: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue({
+        value: [{ confirmationStatus: 'confirmed', err: null }],
+      }),
+    }),
+    sendTransaction: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue('mock-signature-456'),
+    }),
+  };
+
+  return {
+    createClient: vi.fn().mockReturnValue({
+      rpc: mockRpc,
+      wallets: [],
+    }),
+    autoDiscover: vi.fn().mockReturnValue([]),
+    fetchAccount: vi.fn().mockResolvedValue({
+      exists: true,
+      programAddress: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    }),
+  };
+});
+
+// Mock @solana/addresses
+vi.mock('@solana/addresses', () => ({
+  address: vi.fn().mockImplementation((addr: string) => addr),
+}));
+
+// Mock @solana/react-hooks
+vi.mock('@solana/react-hooks', () => ({
+  SolanaProvider: ({ children }: { children: React.ReactNode }) => children,
+  useSolanaClient: vi.fn().mockReturnValue({
+    rpc: {
+      getLatestBlockhash: vi.fn().mockReturnValue({
+        send: vi.fn().mockResolvedValue({
+          value: { blockhash: 'mock-blockhash-123' },
+        }),
+      }),
+    },
+  }),
+  useWallet: vi.fn().mockReturnValue({
+    connected: false,
+    publicKey: null,
+  }),
+  useConnectWallet: vi.fn().mockReturnValue({
+    connect: vi.fn(),
+    isPending: false,
+  }),
+  useDisconnectWallet: vi.fn().mockReturnValue({
+    disconnect: vi.fn(),
+    isPending: false,
+  }),
+  useBalance: vi.fn().mockReturnValue({
+    data: null,
+    isLoading: false,
+  }),
+  useSplToken: vi.fn().mockReturnValue({
+    balance: null,
+    status: 'disconnected',
+    isFetching: false,
+  }),
+  useWalletConnection: vi.fn().mockReturnValue({
+    connected: false,
+    connectors: [],
+    wallet: null,
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+  }),
 }));

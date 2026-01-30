@@ -9,10 +9,10 @@ describe('App', () => {
     expect(header).toHaveTextContent('CoolSwap');
   });
 
-  it('renders swap form placeholder', () => {
+  it('renders swap form with token and chain selectors', () => {
     render(<App />);
-    expect(
-      screen.getByText(/Swap form placeholder/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/From \(Solana\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/To Chain/i)).toBeInTheDocument();
+    expect(screen.getByText(/Get Quote/i)).toBeInTheDocument();
   });
 });

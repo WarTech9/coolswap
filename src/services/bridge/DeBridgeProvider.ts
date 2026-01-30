@@ -140,9 +140,10 @@ export class DeBridgeProvider implements IBridgeProvider {
         throw new Error(`Failed to fetch tokens: ${response.statusText}`);
       }
 
-      const data = (await response.json()) as { tokens: DeBridgeToken[] };
+      // API returns tokens as object with addresses as keys, not array
+      const data = (await response.json()) as { tokens: Record<string, DeBridgeToken> };
 
-      return data.tokens.map((token) => ({
+      return Object.values(data.tokens).map((token) => ({
         address: token.address,
         symbol: token.symbol,
         name: token.name,

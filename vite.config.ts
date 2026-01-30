@@ -25,14 +25,14 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['buffer', '@solana/web3-compat', '@solana/spl-token'],
+    include: ['buffer', '@solana/client', '@solana/react-hooks', '@solana/spl-token'],
   },
   build: {
     target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
-          solana: ['@solana/web3-compat', '@solana/spl-token'],
+          solana: ['@solana/client', '@solana/react-hooks', '@solana/spl-token'],
         },
       },
     },

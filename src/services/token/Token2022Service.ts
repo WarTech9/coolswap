@@ -4,8 +4,7 @@
  */
 
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { PublicKey } from '@solana/web3-compat';
-import type { SolanaRpcService } from '../solana/SolanaRpcService';
+import type { SolanaClientService } from '../solana/SolanaClientService';
 
 export interface Token2022Info {
   isToken2022: boolean;
@@ -13,21 +12,17 @@ export interface Token2022Info {
 }
 
 export class Token2022Service {
-  constructor(private solanaRpc: SolanaRpcService) {}
+  constructor(private solanaClient: SolanaClientService) {}
 
   /**
    * Detect if a mint is Token-2022 by checking account owner
-   * Note: Transfer fee extraction requires full web3.js, which we'll add in future phases
    */
   async detectToken2022(mintAddress: string): Promise<Token2022Info> {
     try {
-      const connection = this.solanaRpc.getConnection();
-      const mintPubkey = new PublicKey(mintAddress);
+      const accountInfo = await this.solanaClient.getAccountInfo(mintAddress);
 
-      // Fetch mint account info
-      const accountInfo = await connection.getAccountInfo(mintPubkey);
-
-      if (!accountInfo) {
+      // Check if account exists (owner is null if account doesn't exist)
+      if (!accountInfo || accountInfo.owner === null) {
         return {
           isToken2022: false,
           transferFeePercent: null,
@@ -35,7 +30,7 @@ export class Token2022Service {
       }
 
       // Check if mint owner is TOKEN_2022_PROGRAM_ID
-      const isToken2022 = accountInfo.owner.equals(TOKEN_2022_PROGRAM_ID);
+      const isToken2022 = accountInfo.owner === TOKEN_2022_PROGRAM_ID.toBase58();
 
       if (!isToken2022) {
         return {
@@ -44,8 +39,9 @@ export class Token2022Service {
         };
       }
 
-      // Token-2022 detected but we can't extract transfer fee config yet
-      // This will be enhanced when we integrate full web3.js for token operations
+      // Token-2022 detected
+      // Transfer fee extraction requires parsing the mint account data
+      // This will be enhanced in future phases
       return {
         isToken2022: true,
         transferFeePercent: null,

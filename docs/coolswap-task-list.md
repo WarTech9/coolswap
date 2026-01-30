@@ -6,9 +6,9 @@
 [x] Solana RPC Utilities - Connection setup, transaction helpers, priority fee fetching
 
 ## Phase 2: Wallet & Token Selection
-[ ] Wallet Integration - Replace stub with @solana/react-hooks, display address/balance
-[ ] Token Selector Component - Source token dropdown with balances and icons
-[ ] Chain Selector Component - Destination chain dropdown
+[x] Wallet Integration - Replace stub with @solana/react-hooks, display address/balance
+[x] Token Selector Component - Source token dropdown with balances and icons
+[x] Chain Selector Component - Destination chain dropdown
 
 ## Phase 3: Quote System
 [ ] Quote Hook (useQuote) - Fetch quotes from deBridge, 30-second auto-refresh
