@@ -40,4 +40,4 @@ vitest.config.js
 vitest.config.d.ts
 
 # Claude settings
-.claude/settings.local.json	
+settings.local.json	
