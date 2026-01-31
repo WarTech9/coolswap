@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
+import type { ReactNode } from 'react';
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
@@ -36,3 +37,88 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 // Buffer polyfill for tests
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
+
+// Mock @solana/client to prevent WebSocket issues in tests
+vi.mock('@solana/client', () => {
+  const mockRpc = {
+    getLatestBlockhash: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue({
+        value: { blockhash: 'mock-blockhash-123', lastValidBlockHeight: 12345 },
+      }),
+    }),
+    getSignatureStatuses: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue({
+        value: [{ confirmationStatus: 'confirmed', err: null }],
+      }),
+    }),
+    sendTransaction: vi.fn().mockReturnValue({
+      send: vi.fn().mockResolvedValue('mock-signature-456'),
+    }),
+  };
+
+  const mockFetchAccount = vi.fn().mockResolvedValue({
+    exists: true,
+    owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  });
+
+  return {
+    createClient: vi.fn().mockReturnValue({
+      runtime: {
+        rpc: mockRpc,
+      },
+      actions: {
+        fetchAccount: mockFetchAccount,
+      },
+      wallets: [],
+    }),
+    autoDiscover: vi.fn().mockReturnValue([]),
+    fetchAccount: mockFetchAccount,
+  };
+});
+
+// Mock @solana/addresses
+vi.mock('@solana/addresses', () => ({
+  address: vi.fn().mockImplementation((addr: string) => addr),
+}));
+
+// Mock @solana/react-hooks
+vi.mock('@solana/react-hooks', () => ({
+  SolanaProvider: ({ children }: { children: ReactNode }) => children,
+  useSolanaClient: vi.fn().mockReturnValue({
+    rpc: {
+      getLatestBlockhash: vi.fn().mockReturnValue({
+        send: vi.fn().mockResolvedValue({
+          value: { blockhash: 'mock-blockhash-123' },
+        }),
+      }),
+    },
+  }),
+  useWallet: vi.fn().mockReturnValue({
+    connected: false,
+    publicKey: null,
+  }),
+  useConnectWallet: vi.fn().mockReturnValue({
+    connect: vi.fn(),
+    isPending: false,
+  }),
+  useDisconnectWallet: vi.fn().mockReturnValue({
+    disconnect: vi.fn(),
+    isPending: false,
+  }),
+  useBalance: vi.fn().mockReturnValue({
+    data: null,
+    isLoading: false,
+  }),
+  useSplToken: vi.fn().mockReturnValue({
+    balance: null,
+    status: 'disconnected',
+    isFetching: false,
+  }),
+  useWalletConnection: vi.fn().mockReturnValue({
+    connected: false,
+    connectors: [],
+    wallet: null,
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+  }),
+}));

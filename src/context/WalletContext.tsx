@@ -1,4 +1,10 @@
+/**
+ * Wallet context
+ * Wraps @solana/react-hooks wallet functionality for app use
+ */
+
 import { createContext, useContext, useMemo, ReactNode } from 'react';
+import { useWalletConnection } from '@solana/react-hooks';
 
 interface WalletContextType {
   connected: boolean;
@@ -10,20 +16,46 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  // Stub implementation - will be replaced with @solana/react-hooks
-  const value = useMemo<WalletContextType>(
-    () => ({
-      connected: false,
-      publicKey: null,
+  const {
+    connected,
+    connectors,
+    connect: walletConnect,
+    disconnect: walletDisconnect,
+    wallet,
+  } = useWalletConnection();
+
+  const value = useMemo<WalletContextType>(() => {
+    // Get public key from wallet session if connected
+    const publicKeyStr = wallet?.account?.address?.toString() ?? null;
+
+    return {
+      connected,
+      publicKey: publicKeyStr,
       connect: async () => {
-        console.log('Connect wallet - to be implemented');
+        try {
+          // Use the first available connector
+          const connector = connectors[0];
+          if (!connector) {
+            throw new Error(
+              'No wallet found. Please install Phantom, Solflare, or another Solana wallet.'
+            );
+          }
+          await walletConnect(connector.id);
+        } catch (error) {
+          console.error('Failed to connect wallet:', error);
+          throw error;
+        }
       },
       disconnect: async () => {
-        console.log('Disconnect wallet - to be implemented');
+        try {
+          await walletDisconnect();
+        } catch (error) {
+          console.error('Failed to disconnect wallet:', error);
+          throw error;
+        }
       },
-    }),
-    []
-  );
+    };
+  }, [connected, connectors, wallet, walletConnect, walletDisconnect]);
 
   return (
     <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
