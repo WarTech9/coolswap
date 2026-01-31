@@ -22,8 +22,9 @@ export interface UseOrderStatusResult {
 
 /**
  * Check if an order status is terminal (no more polling needed)
+ * Exported for testing
  */
-function isTerminalStatus(status: OrderStatus): boolean {
+export function isTerminalStatus(status: OrderStatus): boolean {
   return (
     status === 'fulfilled' ||
     status === 'completed' ||

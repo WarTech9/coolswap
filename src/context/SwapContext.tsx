@@ -32,7 +32,8 @@ type SwapAction =
 
 // Validate amount input: allow empty string or valid decimal numbers
 // Must have at least one digit (rejects standalone ".")
-function isValidAmount(value: string): boolean {
+// Exported for testing
+export function isValidAmount(value: string): boolean {
   if (value === '') return true;
   return /^\d+\.?\d*$|^\d*\.?\d+$/.test(value);
 }
@@ -48,7 +49,8 @@ const initialState: SwapState = {
   error: null,
 };
 
-function swapReducer(state: SwapState, action: SwapAction): SwapState {
+// Exported for testing
+export function swapReducer(state: SwapState, action: SwapAction): SwapState {
   switch (action.type) {
     case 'SET_SOURCE_TOKEN':
       return { ...state, sourceToken: action.payload, quote: null };

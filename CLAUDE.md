@@ -28,6 +28,10 @@ pnpm test            # Run tests
 pnpm lint            # Run linter
 ```
 
+## Development workflow
+- Use the fullstack-developer subagent for writing code
+- After every major code change, use the code-reviewer subagent for reviewing changes
+
 ## Architecture
 
 ### Bridge Provider Abstraction

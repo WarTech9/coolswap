@@ -22,8 +22,9 @@ const SOL_DECIMALS = 9; // Solana native token decimals
 
 /**
  * Format amount for display (trim trailing zeros)
+ * Exported for testing
  */
-function formatAmount(amount: string, decimals: number): string {
+export function formatAmount(amount: string, decimals: number): string {
   const num = parseFloat(amount) / Math.pow(10, decimals);
   if (isNaN(num)) return '0';
   // Format with up to 6 decimal places, trim trailing zeros
@@ -35,8 +36,9 @@ function formatAmount(amount: string, decimals: number): string {
 
 /**
  * Format SOL amount (always 9 decimals)
+ * Exported for testing
  */
-function formatSolAmount(amount: string): string {
+export function formatSolAmount(amount: string): string {
   const num = parseFloat(amount) / Math.pow(10, SOL_DECIMALS);
   if (isNaN(num)) return '0';
   return num.toLocaleString('en-US', {
@@ -47,8 +49,9 @@ function formatSolAmount(amount: string): string {
 
 /**
  * Get user-friendly error message
+ * Exported for testing
  */
-function getErrorMessage(error: CreateOrderError, sourceSymbol?: string): string {
+export function getErrorMessage(error: CreateOrderError, sourceSymbol?: string): string {
   switch (error.code) {
     case 'INSUFFICIENT_LIQUIDITY':
       return error.message || 'Not enough liquidity for this swap. Try a smaller amount.';

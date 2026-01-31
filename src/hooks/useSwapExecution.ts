@@ -22,8 +22,9 @@ export interface UseSwapExecutionResult {
 
 /**
  * Decode hex string to Uint8Array
+ * Exported for testing
  */
-function hexToBytes(hex: string): Uint8Array {
+export function hexToBytes(hex: string): Uint8Array {
   const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
   const bytes = new Uint8Array(cleanHex.length / 2);
   for (let i = 0; i < cleanHex.length; i += 2) {

@@ -41,8 +41,9 @@ export interface UseQuoteResult {
 
 /**
  * Check if all required params are present for a valid quote request
+ * Exported for testing
  */
-function isValidQuoteParams(params: UseQuoteParams | null): params is UseQuoteParams & {
+export function isValidQuoteParams(params: UseQuoteParams | null): params is UseQuoteParams & {
   sourceToken: string;
   destinationChain: string;
   destinationToken: string;
