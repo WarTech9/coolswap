@@ -197,7 +197,7 @@ function SwapForm() {
             type="text"
             value={state.recipientAddress}
             onChange={(e) =>
-              dispatch({ type: 'SET_RECIPIENT', payload: e.target.value })
+              dispatch({ type: 'SET_RECIPIENT', payload: e.target.value.trim() })
             }
             placeholder="0x..."
             className={`w-full bg-slate-700/50 rounded-lg p-3 text-white text-sm

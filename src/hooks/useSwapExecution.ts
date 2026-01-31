@@ -85,6 +85,29 @@ export function useSwapExecution(
       return;
     }
 
+    // Validate hex format before decoding
+    const hexPattern = /^(0x)?[0-9a-fA-F]+$/;
+    if (!hexPattern.test(txData.data)) {
+      setError('Invalid transaction data format');
+      setStatus('error');
+      return;
+    }
+
+    // Ensure even length (2 hex chars per byte)
+    const cleanHex = txData.data.startsWith('0x') ? txData.data.slice(2) : txData.data;
+    if (cleanHex.length % 2 !== 0) {
+      setError('Invalid transaction data format');
+      setStatus('error');
+      return;
+    }
+
+    // Check signing capability before processing
+    if (!wallet.signTransaction) {
+      setError('Wallet does not support transaction signing. Please use a different wallet.');
+      setStatus('error');
+      return;
+    }
+
     isExecutingRef.current = true;
     onPause?.();
 
@@ -103,10 +126,6 @@ export function useSwapExecution(
 
       // Step 4: Sign the transaction with the wallet
       // The wallet.signTransaction expects a Transaction and returns a signed Transaction
-      if (!wallet.signTransaction) {
-        throw new Error('Wallet does not support transaction signing');
-      }
-
       // Sign the transaction - wallet will prompt user
       // Use type assertion because deBridge transactions are pre-built and
       // don't carry the nominal type brands from @solana/transactions

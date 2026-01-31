@@ -3,7 +3,6 @@
  * These methods are accessed through a public API for testing purposes
  */
 
-import { DeBridgeProvider } from '@/services/bridge/DeBridgeProvider';
 import { DEBRIDGE_CHAIN_IDS } from '@/config/chains';
 import type { OrderStatus } from '@/services/bridge/types';
 import type { CreateOrderError } from '@/services/bridge/IBridgeProvider';

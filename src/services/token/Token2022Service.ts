@@ -42,6 +42,12 @@ export class Token2022Service {
       // Token-2022 detected
       // Transfer fee extraction requires parsing the mint account data
       // This will be enhanced in future phases
+      // TODO: Transfer fee extraction not yet implemented
+      // This may cause incorrect amount calculations for Token-2022 mints with transfer fees
+      console.warn(
+        `Token-2022 mint detected (${mintAddress}), but transfer fee extraction not implemented. ` +
+        `Amounts may be inaccurate if this mint has transfer fees enabled.`
+      );
       return {
         isToken2022: true,
         transferFeePercent: null,

@@ -5,6 +5,7 @@
 
 import type { Quote, Token } from '@/services/bridge/types';
 import type { CreateOrderError } from '@/services/bridge/IBridgeProvider';
+import { formatTokenAmount, formatSolAmount } from '@/utils/formatting';
 
 interface QuoteDisplayProps {
   quote: Quote | null;
@@ -18,34 +19,12 @@ interface QuoteDisplayProps {
 }
 
 const SLIPPAGE_OPTIONS = [0.001, 0.005, 0.01]; // 0.1%, 0.5%, 1%
-const SOL_DECIMALS = 9; // Solana native token decimals
 
 /**
- * Format amount for display (trim trailing zeros)
- * Exported for testing
+ * Legacy export for backwards compatibility with tests
+ * Delegates to shared formatting utility
  */
-export function formatAmount(amount: string, decimals: number): string {
-  const num = parseFloat(amount) / Math.pow(10, decimals);
-  if (isNaN(num)) return '0';
-  // Format with up to 6 decimal places, trim trailing zeros
-  return num.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  });
-}
-
-/**
- * Format SOL amount (always 9 decimals)
- * Exported for testing
- */
-export function formatSolAmount(amount: string): string {
-  const num = parseFloat(amount) / Math.pow(10, SOL_DECIMALS);
-  if (isNaN(num)) return '0';
-  return num.toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  });
-}
+export { formatTokenAmount as formatAmount, formatSolAmount } from '@/utils/formatting';
 
 /**
  * Get user-friendly error message
@@ -106,7 +85,7 @@ export function QuoteDisplay({
             <span className="text-slate-400 text-sm">You receive</span>
             <span className="text-white font-medium">
               {destinationToken
-                ? formatAmount(quote.destinationAmount, destinationToken.decimals)
+                ? formatTokenAmount(quote.destinationAmount, destinationToken.decimals)
                 : quote.destinationAmount}{' '}
               <span className="text-slate-400">{destinationToken?.symbol}</span>
             </span>
@@ -118,7 +97,7 @@ export function QuoteDisplay({
               <span className="text-slate-400">Operating expenses</span>
               <span className="text-slate-300">
                 +{sourceToken
-                  ? formatAmount(quote.fees.operatingExpenses, sourceToken.decimals)
+                  ? formatTokenAmount(quote.fees.operatingExpenses, sourceToken.decimals)
                   : quote.fees.operatingExpenses}{' '}
                 {sourceToken?.symbol}
               </span>
@@ -134,7 +113,7 @@ export function QuoteDisplay({
               <span className="text-slate-300 font-medium">Total from wallet</span>
               <span className="text-white font-medium">
                 {sourceToken
-                  ? formatAmount(quote.sourceAmount, sourceToken.decimals)
+                  ? formatTokenAmount(quote.sourceAmount, sourceToken.decimals)
                   : quote.sourceAmount}{' '}
                 {sourceToken?.symbol}
                 <span className="text-slate-400 text-xs ml-1">

@@ -13,15 +13,15 @@ interface ChainSelectorProps {
   label?: string;
 }
 
-// Chain logo mapping - using publicly available logos
+// Chain logo mapping - using DefiLlama CDN for reliability
 const CHAIN_LOGOS: Record<string, string> = {
-  ethereum: 'https://cryptologos.cc/logos/ethereum-eth-logo.svg',
-  arbitrum: 'https://cryptologos.cc/logos/arbitrum-arb-logo.svg',
-  base: 'https://raw.githubusercontent.com/base-org/brand-kit/main/logo/symbol/Base_Symbol_Blue.svg',
-  polygon: 'https://cryptologos.cc/logos/polygon-matic-logo.svg',
-  optimism: 'https://cryptologos.cc/logos/optimism-ethereum-op-logo.svg',
-  avalanche: 'https://cryptologos.cc/logos/avalanche-avax-logo.svg',
-  bnb: 'https://cryptologos.cc/logos/bnb-bnb-logo.svg',
+  ethereum: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg',
+  arbitrum: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg',
+  base: 'https://icons.llamao.fi/icons/chains/rsz_base.jpg',
+  polygon: 'https://icons.llamao.fi/icons/chains/rsz_polygon.jpg',
+  optimism: 'https://icons.llamao.fi/icons/chains/rsz_optimism.jpg',
+  avalanche: 'https://icons.llamao.fi/icons/chains/rsz_avalanche.jpg',
+  bnb: 'https://icons.llamao.fi/icons/chains/rsz_binance.jpg',
 };
 
 export function ChainSelector({

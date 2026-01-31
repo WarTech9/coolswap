@@ -180,12 +180,10 @@ export class DeBridgeProvider implements IBridgeProvider {
         prependOperatingExpenses: 'true',
       });
 
-      // Add optional slippage if provided
-      if (request.slippageTolerance !== undefined) {
-        // deBridge expects slippage in basis points (e.g., 50 = 0.5%)
-        const slippageBps = Math.floor(request.slippageTolerance * 100);
-        params.append('affiliateFeePercent', slippageBps.toString());
-      }
+      // Note: deBridge DLN API uses an intent-based system where users receive
+      // the exact quoted output amount. Slippage protection is handled automatically
+      // through order fulfillment guarantees. The slippageTolerance parameter is
+      // kept in the interface for future providers (e.g., Relay) that may need it.
 
       const url = `${this.baseUrl}/dln/order/create-tx?${params.toString()}`;
       const response = await fetch(url);

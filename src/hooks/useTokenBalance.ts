@@ -40,13 +40,33 @@ export function useTokenBalance(token: Token | null): UseTokenBalanceResult {
 
   // Get balance - uiAmount is already a formatted string
   if (balance !== null && balance !== undefined && 'uiAmount' in balance) {
-    // uiAmount is already a string, just use it directly
-    // Optionally format to 4 decimal places
     const uiAmount = balance.uiAmount ?? '0';
     const numericValue = Number(uiAmount);
-    const formattedBalance = Number.isFinite(numericValue)
-      ? numericValue.toFixed(4)
-      : '0.0000';
+
+    let formattedBalance: string;
+    if (!Number.isFinite(numericValue)) {
+      formattedBalance = '0';
+    } else if (numericValue === 0) {
+      formattedBalance = '0';
+    } else if (numericValue >= 1000) {
+      formattedBalance = numericValue.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else if (numericValue >= 1) {
+      formattedBalance = numericValue.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      });
+    } else if (numericValue >= 0.0001) {
+      formattedBalance = numericValue.toLocaleString('en-US', {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 6,
+      });
+    } else {
+      formattedBalance = numericValue.toExponential(2);
+    }
+
     return {
       balance: formattedBalance,
       isLoading: false,

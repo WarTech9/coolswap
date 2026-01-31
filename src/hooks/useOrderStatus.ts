@@ -97,7 +97,15 @@ export function useOrderStatus(orderId: string | null): UseOrderStatusResult {
 
       const message = err instanceof Error ? err.message : 'Failed to fetch order status';
       setError(message);
-      // Don't stop polling on error - might be transient
+
+      // Check max polls before scheduling retry
+      pollCountRef.current += 1;
+      if (pollCountRef.current >= MAX_POLLS) {
+        clearPollTimer();
+        return;
+      }
+
+      // Continue polling - error might be transient
       pollTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) {
           fetchStatus();

@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useBridgeProvider } from './useBridgeProvider';
 import type { Quote, QuoteRequest } from '@/services/bridge/types';
 import type { CreateOrderError } from '@/services/bridge/IBridgeProvider';
+import { toSmallestUnits } from '@/utils/formatting';
 
 // Refresh quote 5 seconds before it expires (30s expiry - 5s buffer = 25s)
 const REFRESH_INTERVAL_MS = 25_000;
@@ -104,9 +105,7 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
     clearTimers();
 
     // Convert amount from human-readable to smallest units (e.g., 1000 USDC -> 1000000000)
-    const amountInSmallestUnits = (
-      parseFloat(params.amount) * Math.pow(10, params.sourceTokenDecimals)
-    ).toFixed(0);
+    const amountInSmallestUnits = toSmallestUnits(params.amount, params.sourceTokenDecimals);
 
     const request: QuoteRequest = {
       sourceChainId: 'solana', // Always Solana as source for MVP
@@ -143,7 +142,7 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
 
         // Schedule next refresh (unless paused)
         refreshTimerRef.current = setTimeout(() => {
-          if (isMountedRef.current && !isPausedRef.current) {
+          if (isMountedRef.current && !isPausedRef.current && isValidQuoteParams(params)) {
             fetchQuote();
           }
         }, REFRESH_INTERVAL_MS);
