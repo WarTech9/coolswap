@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { SolanaProvider as SolanaHooksProvider } from '@solana/react-hooks';
 import { SolanaClientProvider } from './context/SolanaContext';
 import { BridgeProvider } from './context/BridgeContext';
@@ -7,15 +7,18 @@ import { WalletProvider, useWalletContext } from './context/WalletContext';
 import { SwapProvider, useSwapContext } from './context/SwapContext';
 import { WalletButton } from './components/wallet/WalletButton';
 import { TokenSelector } from './components/token';
-import { ChainSelector, AmountInput, QuoteDisplay } from './components/swap';
+import { ChainSelector, AmountInput, QuoteDisplay, SwapStatusModal } from './components/swap';
 import {
   useSourceTokens,
   useDestinationTokens,
   useTokenBalance,
   useQuote,
+  useSwapExecution,
+  useOrderStatus,
 } from './hooks';
 import { DESTINATION_CHAINS } from './config/chains';
 import { env } from './config/env';
+import { getAddressValidationError } from './utils/validation';
 
 function SwapForm() {
   const { state, dispatch } = useSwapContext();
@@ -38,6 +41,12 @@ function SwapForm() {
 
   // Get balance for selected source token
   const { balance, isLoading: balanceLoading } = useTokenBalance(selectedSourceToken);
+
+  // Validate recipient address
+  const recipientAddressError = getAddressValidationError(
+    state.recipientAddress,
+    state.destinationChain
+  );
 
   // Build quote params - only when all required fields are filled
   const quoteParams = useMemo(() => {
@@ -64,16 +73,61 @@ function SwapForm() {
     slippage,
   ]);
 
-  // Fetch quote
+  // Fetch quote with pause/resume for execution
   const {
     quote,
     isLoading: quoteLoading,
     error: quoteError,
     secondsUntilExpiry,
+    pause: pauseQuote,
+    resume: resumeQuote,
   } = useQuote(quoteParams);
 
+  // Swap execution hook
+  const {
+    execute: executeSwap,
+    isExecuting,
+    txSignature,
+    error: executionError,
+    status: executionStatus,
+    reset: resetExecution,
+  } = useSwapExecution(quote, pauseQuote, resumeQuote);
+
+  // Order status tracking - start polling after tx is confirmed
+  const orderId = executionStatus === 'completed' ? quote?.id ?? null : null;
+  const {
+    orderInfo,
+    isLoading: orderLoading,
+    error: orderError,
+  } = useOrderStatus(orderId);
+
+  // Handle swap button click
+  const handleSwap = useCallback(async () => {
+    await executeSwap();
+  }, [executeSwap]);
+
+  // Handle modal close
+  const handleModalClose = useCallback(() => {
+    resetExecution();
+    // If swap completed, reset the form
+    if (executionStatus === 'completed') {
+      dispatch({ type: 'RESET' });
+    } else {
+      // Resume quote refresh on error/cancel
+      resumeQuote();
+    }
+  }, [resetExecution, executionStatus, dispatch, resumeQuote]);
+
+  // Handle retry from error state
+  const handleRetry = useCallback(() => {
+    resetExecution();
+    resumeQuote();
+  }, [resetExecution, resumeQuote]);
+
   // Determine if swap button should be enabled
-  const canSwap = connected && quote !== null && !quoteLoading;
+  // Block when: not connected, no quote, loading, executing, quote expiring soon (<5s), or invalid address
+  const quoteExpiringSoon = secondsUntilExpiry !== null && secondsUntilExpiry < 5;
+  const canSwap = connected && quote !== null && !quoteLoading && !isExecuting && !quoteExpiringSoon && !recipientAddressError;
 
   return (
     <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 shadow-xl space-y-4">
@@ -146,10 +200,17 @@ function SwapForm() {
               dispatch({ type: 'SET_RECIPIENT', payload: e.target.value })
             }
             placeholder="0x..."
-            className="w-full bg-slate-700/50 rounded-lg p-3 text-white text-sm
+            className={`w-full bg-slate-700/50 rounded-lg p-3 text-white text-sm
                        placeholder-slate-500 focus:outline-none focus:ring-2
-                       focus:ring-solana-purple font-mono"
+                       font-mono ${
+                         recipientAddressError
+                           ? 'border border-red-500 focus:ring-red-500'
+                           : 'focus:ring-solana-purple'
+                       }`}
           />
+          {recipientAddressError && (
+            <p className="text-red-400 text-xs mt-1">{recipientAddressError}</p>
+          )}
         </div>
       )}
 
@@ -167,6 +228,7 @@ function SwapForm() {
 
       {/* Swap Button */}
       <button
+        onClick={handleSwap}
         disabled={!canSwap}
         className={`w-full bg-gradient-to-r from-solana-purple to-solana-green
                    text-white font-medium py-3 rounded-lg transition-opacity
@@ -174,12 +236,29 @@ function SwapForm() {
       >
         {!connected
           ? 'Connect Wallet'
-          : quoteLoading
-            ? 'Fetching Quote...'
-            : quote
-              ? 'Swap (Phase 4)'
-              : 'Enter Amount'}
+          : isExecuting
+            ? 'Processing...'
+            : quoteLoading
+              ? 'Fetching Quote...'
+              : quoteExpiringSoon
+                ? 'Quote expired - refreshing...'
+                : quote
+                  ? 'Swap'
+                  : 'Enter Amount'}
       </button>
+
+      {/* Swap Status Modal */}
+      <SwapStatusModal
+        isOpen={isExecuting || executionStatus === 'completed' || executionStatus === 'error'}
+        status={executionStatus}
+        txSignature={txSignature}
+        error={executionError}
+        onClose={handleModalClose}
+        onRetry={handleRetry}
+        orderInfo={orderInfo}
+        orderLoading={orderLoading}
+        orderError={orderError}
+      />
     </div>
   );
 }

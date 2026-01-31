@@ -16,10 +16,10 @@
 [x] Amount Input Component - With max button and validation
 
 ## Phase 4: Transaction Execution
-[ ] Swap Execution - Deserialize, update priority fee, sign, submit
-[ ] Transaction Status UI - Signing, confirming, completed states
+[x] Swap Execution - Deserialize, update priority fee, sign, submit
+[x] Transaction Status UI - Signing, confirming, completed states
 
 ## Phase 5: Order Tracking & Polish
-[ ] Order Tracking - Poll order status, link to deBridge explorer
-[ ] Error Handling - User-friendly error messages throughout
-[ ] UI Polish - Loading states, responsive design, edge cases
+[x] Order Tracking - Poll order status, link to deBridge explorer
+[x] Error Handling - User-friendly error messages throughout
+[x] UI Polish - Loading states, responsive design, edge cases

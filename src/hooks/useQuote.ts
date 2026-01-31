@@ -31,6 +31,12 @@ export interface UseQuoteResult {
   error: CreateOrderError | null;
   secondsUntilExpiry: number | null;
   refresh: () => void;
+  /** Pause auto-refresh (e.g., during transaction execution) */
+  pause: () => void;
+  /** Resume auto-refresh after pausing */
+  resume: () => void;
+  /** Whether auto-refresh is currently paused */
+  isPaused: boolean;
 }
 
 /**
@@ -62,12 +68,14 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<CreateOrderError | null>(null);
   const [secondsUntilExpiry, setSecondsUntilExpiry] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Refs for cleanup
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expiryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
+  const isPausedRef = useRef(false);
 
   // Clear all timers
   const clearTimers = useCallback(() => {
@@ -132,9 +140,9 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
         updateExpiry();
         expiryIntervalRef.current = setInterval(updateExpiry, 1000);
 
-        // Schedule next refresh
+        // Schedule next refresh (unless paused)
         refreshTimerRef.current = setTimeout(() => {
-          if (isMountedRef.current) {
+          if (isMountedRef.current && !isPausedRef.current) {
             fetchQuote();
           }
         }, REFRESH_INTERVAL_MS);
@@ -165,6 +173,27 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
     clearTimers();
     fetchQuote();
   }, [clearTimers, fetchQuote]);
+
+  // Pause auto-refresh (e.g., during transaction execution)
+  const pause = useCallback(() => {
+    isPausedRef.current = true;
+    setIsPaused(true);
+    // Clear the scheduled refresh timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  // Resume auto-refresh after pausing
+  const resume = useCallback(() => {
+    isPausedRef.current = false;
+    setIsPaused(false);
+    // Trigger a fresh quote fetch
+    if (isValidQuoteParams(params)) {
+      fetchQuote();
+    }
+  }, [params, fetchQuote]);
 
   // Effect to handle param changes with debounce
   useEffect(() => {
@@ -206,5 +235,8 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
     error,
     secondsUntilExpiry,
     refresh,
+    pause,
+    resume,
+    isPaused,
   };
 }

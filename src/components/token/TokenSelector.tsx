@@ -82,7 +82,7 @@ export function TokenSelector({
 
           {/* Dropdown */}
           <div className="absolute z-50 mt-2 w-full bg-slate-800 border border-slate-700
-                          rounded-lg shadow-xl max-h-64 overflow-hidden">
+                          rounded-lg shadow-xl max-h-[min(300px,60vh)] overflow-hidden">
             {/* Search input */}
             <div className="p-2 border-b border-slate-700">
               <input
@@ -98,7 +98,7 @@ export function TokenSelector({
             </div>
 
             {/* Token list */}
-            <div className="overflow-y-auto max-h-48">
+            <div className="overflow-y-auto max-h-[min(200px,45vh)]">
               {filteredTokens.map((token) => (
                 <button
                   key={token.address}

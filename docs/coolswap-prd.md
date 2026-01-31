@@ -1,15 +1,19 @@
 # Product Requirements Document (PRD)
 ## Cross-Chain Swap dApp: Solana → EVM via deBridge DLN
 
-**Version:** 1.0  
-**Date:** January 30, 2026  
-**Status:** Approved
+**Version:** 1.1
+**Date:** January 31, 2026
+**Status:** In Progress
 
 ---
 
 ## 1. Overview
 
-Build a React-based frontend dApp that enables users to execute cross-chain swaps from **Solana (SPL tokens)** to **any supported EVM chain**, using the **deBridge Liquidity Network (DLN) API**. The system must ensure economic guarantees that the gas sponsor never incurs a net loss.
+Build a React-based frontend dApp that enables users to execute cross-chain swaps from **Solana (SPL tokens)** to **any supported EVM chain**, using the **deBridge Liquidity Network (DLN) API**.
+
+**Core UX Principle:** Users should **NOT need to hold SOL** to perform a swap. All costs (gas fees, protocol fees, operating expenses) must be payable in the user's input token. This requires a gas sponsorship mechanism.
+
+The system must ensure economic guarantees that the gas sponsor never incurs a net loss.
 
 ---
 
@@ -17,8 +21,8 @@ Build a React-based frontend dApp that enables users to execute cross-chain swap
 
 | Persona | Description |
 |---------|-------------|
-| **End User** | Holds SPL tokens on Solana, wants to receive tokens on an EVM chain |
-| **Gas Sponsor** | Platform wallet that pays Solana-side transaction costs (abstracted via `prependOperatingExpenses`) |
+| **End User** | Holds SPL tokens on Solana, wants to receive tokens on an EVM chain. **Does not need to hold SOL.** |
+| **Gas Sponsor** | Server-side wallet that pays Solana transaction fees (gas) on behalf of users. Gets reimbursed from the user's input token to ensure zero net loss. |
 
 ---
 
@@ -79,13 +83,37 @@ Build a React-based frontend dApp that enables users to execute cross-chain swap
 
 ### 4.1 Economic Guarantees
 
+There are **two distinct cost categories** that must be handled:
+
+#### 4.1.1 deBridge Operating Expenses (Handled by API)
+
 | Guarantee | Implementation |
 |-----------|----------------|
-| Sponsor pays all Solana-side costs | Use `prependOperatingExpenses=true` - automatically adds costs to user's input amount |
-| User pays fee in input token | deBridge deducts from input token, prepends operating expenses |
-| Fee covers all sponsored costs | API calculates and prepends full operating expense |
-| Sponsor never has net loss | Prepended expenses ensure cost recovery before order creation |
-| No accidental SOL gifting | No separate SOL transfers; all costs embedded in token amount |
+| deBridge fees paid in input token | Use `prependOperatingExpenses=true` in API calls |
+| User pays deBridge fees | API calculates and prepends operating expenses to input amount |
+
+#### 4.1.2 Solana Transaction Gas Fees (Requires Sponsor Mechanism)
+
+**Problem:** Solana requires SOL to pay transaction fees (gas). The deBridge API's `prependOperatingExpenses` does NOT cover this - it only covers deBridge's own fees. Users without SOL cannot submit transactions.
+
+**Requirement:** Implement a gas sponsorship mechanism so users can swap without holding SOL.
+
+| Guarantee | Implementation |
+|-----------|----------------|
+| User does not need SOL | Sponsor wallet pays Solana transaction fees on user's behalf |
+| Sponsor never loses funds | Sponsor is reimbursed from user's input token (before or during swap) |
+| Fee covers gas + margin | Include estimated gas cost + small margin in total fee to user |
+| Transparent pricing | Display gas sponsorship fee separately in fee breakdown |
+
+#### 4.1.3 Potential Implementation Approaches
+
+| Approach | Description | Complexity |
+|----------|-------------|------------|
+| **Fee Relay Service** | Third-party service (e.g., Octane, Jito) that accepts token payment for gas | Low - integrate existing solution |
+| **Custom Sponsor Backend** | Our own server with funded wallet, swaps portion of user's tokens to SOL for gas | Medium - requires backend service |
+| **Bundled Transaction** | Sponsor co-signs and pays gas, gets reimbursed via instruction in same tx | High - requires careful tx construction |
+
+**Decision Required:** Select implementation approach before Phase 6 development.
 
 ### 4.2 Token Handling
 
@@ -138,6 +166,7 @@ The bridge integration must be **encapsulated behind an abstraction layer** to a
 ├─────────────────────────────────────────────┤
 │  Fee Breakdown:                             │
 │  • Operating expenses: 2.50 USDC           │
+│  • Gas sponsorship: 0.05 USDC              │
 │  • Protocol fee: 1.00 USDC                 │
 │  • Slippage: 0.5% [Edit]                   │
 │  • Est. time: ~5 seconds                   │
@@ -173,10 +202,11 @@ The bridge integration must be **encapsulated behind an abstraction layer** to a
 ## 7. Success Criteria
 
 1. User can complete a swap from any supported SPL token to any EVM chain
-2. Sponsor (via prependOperatingExpenses) never loses funds
-3. All fees are transparently displayed before execution
-4. Token-2022 tokens with transfer fees work correctly
-5. Unit tests pass with mocks/stubs
+2. **User can swap without holding any SOL** (gas sponsorship works)
+3. Gas sponsor never loses funds (reimbursed from input token)
+4. All fees (gas, protocol, operating) are transparently displayed before execution
+5. Token-2022 tokens with transfer fees work correctly
+6. Unit tests pass with mocks/stubs
 
 ---
 
@@ -189,6 +219,8 @@ The bridge integration must be **encapsulated behind an abstraction layer** to a
 | 3 | Quote expires before signing | User prompted to refresh quote |
 | 4 | Token-2022 with 1% transfer fee | Fee correctly accounted in total charged |
 | 5 | Invalid EVM address entered | Validation error shown immediately |
+| 6 | **User with 0 SOL swaps USDC** | Swap completes successfully; gas paid via sponsorship |
+| 7 | **Gas sponsorship fee displayed** | Fee breakdown shows gas sponsorship cost separately |
 
 ---
 
@@ -207,3 +239,4 @@ The bridge integration must be **encapsulated behind an abstraction layer** to a
 - Frontend Documentation: https://solana.com/docs/frontend
 - `@solana/react-hooks`: https://github.com/solana-foundation/framework-kit/tree/main/packages/react-hooks
 - `@solana/client`: https://github.com/solana-foundation/framework-kit/tree/main/packages/client
+
