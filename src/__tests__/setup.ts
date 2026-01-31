@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
+import type { ReactNode } from 'react';
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
@@ -55,16 +56,23 @@ vi.mock('@solana/client', () => {
     }),
   };
 
+  const mockFetchAccount = vi.fn().mockResolvedValue({
+    exists: true,
+    owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  });
+
   return {
     createClient: vi.fn().mockReturnValue({
-      rpc: mockRpc,
+      runtime: {
+        rpc: mockRpc,
+      },
+      actions: {
+        fetchAccount: mockFetchAccount,
+      },
       wallets: [],
     }),
     autoDiscover: vi.fn().mockReturnValue([]),
-    fetchAccount: vi.fn().mockResolvedValue({
-      exists: true,
-      programAddress: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-    }),
+    fetchAccount: mockFetchAccount,
   };
 });
 
@@ -75,7 +83,7 @@ vi.mock('@solana/addresses', () => ({
 
 // Mock @solana/react-hooks
 vi.mock('@solana/react-hooks', () => ({
-  SolanaProvider: ({ children }: { children: React.ReactNode }) => children,
+  SolanaProvider: ({ children }: { children: ReactNode }) => children,
   useSolanaClient: vi.fn().mockReturnValue({
     rpc: {
       getLatestBlockhash: vi.fn().mockReturnValue({

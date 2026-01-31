@@ -235,7 +235,7 @@ function SwapForm() {
                    ${canSwap ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
       >
         {!connected
-          ? 'Connect Wallet'
+          ? 'Connect Wallet to Swap'
           : isExecuting
             ? 'Processing...'
             : quoteLoading

@@ -30,7 +30,7 @@ export class Token2022Service {
       }
 
       // Check if mint owner is TOKEN_2022_PROGRAM_ID
-      const isToken2022 = accountInfo.owner === TOKEN_2022_PROGRAM_ID.toBase58();
+      const isToken2022 = String(accountInfo.owner) === TOKEN_2022_PROGRAM_ID.toBase58();
 
       if (!isToken2022) {
         return {

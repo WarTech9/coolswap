@@ -9,6 +9,7 @@ import { useBridgeProvider } from './useBridgeProvider';
 import type { Quote, QuoteRequest } from '@/services/bridge/types';
 import type { CreateOrderError } from '@/services/bridge/IBridgeProvider';
 import { toSmallestUnits } from '@/utils/formatting';
+import { isValidEVMAddress } from '@/utils/validation';
 
 // Refresh quote 5 seconds before it expires (30s expiry - 5s buffer = 25s)
 const REFRESH_INTERVAL_MS = 25_000;
@@ -51,7 +52,9 @@ export function isValidQuoteParams(params: UseQuoteParams | null): params is Use
   senderAddress: string;
 } {
   if (!params) return false;
-  return (
+
+  // Basic field validation
+  const hasRequiredFields = (
     params.sourceToken !== null &&
     params.destinationChain !== null &&
     params.destinationToken !== null &&
@@ -62,6 +65,17 @@ export function isValidQuoteParams(params: UseQuoteParams | null): params is Use
     !isNaN(parseFloat(params.amount)) &&
     parseFloat(params.amount) > 0
   );
+
+  if (!hasRequiredFields) return false;
+
+  // EVM address validation for non-Solana destinations
+  if (params.destinationChain !== 'solana') {
+    if (!isValidEVMAddress(params.recipientAddress)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function useQuote(params: UseQuoteParams | null): UseQuoteResult {

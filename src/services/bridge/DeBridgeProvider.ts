@@ -176,7 +176,6 @@ export class DeBridgeProvider implements IBridgeProvider {
         dstChainTokenOutRecipient: request.recipientAddress,
         srcChainOrderAuthorityAddress: request.senderAddress,
         dstChainOrderAuthorityAddress: request.recipientAddress,
-        // CRITICAL: Prepend operating expenses to ensure sponsor never loses funds
         prependOperatingExpenses: 'true',
       });
 
