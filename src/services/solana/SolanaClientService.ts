@@ -13,21 +13,15 @@ import { address } from '@solana/addresses';
 import type { Signature } from '@solana/keys';
 import type { Base64EncodedWireTransaction } from '@solana/transactions';
 
-interface HeliusPriorityFeeResponse {
-  priorityFeeEstimate?: number;
-}
-
 export class SolanaClientService {
   private client: SolanaClient;
-  private heliusApiKey?: string;
 
-  constructor(endpoint: string, websocketEndpoint: string, heliusApiKey?: string) {
+  constructor(endpoint: string, websocketEndpoint: string) {
     this.client = createClient({
       endpoint,
       websocket: websocketEndpoint,
       walletConnectors: autoDiscover(),
     });
-    this.heliusApiKey = heliusApiKey;
   }
 
   /**
@@ -35,17 +29,6 @@ export class SolanaClientService {
    */
   getClient(): SolanaClient {
     return this.client;
-  }
-
-  /**
-   * Get priority fee in microlamports per compute unit
-   * Uses Helius API if available, otherwise returns a default
-   */
-  async getPriorityFee(): Promise<number> {
-    if (this.heliusApiKey) {
-      return this.getHeliusPriorityFee();
-    }
-    return this.getDefaultPriorityFee();
   }
 
   /**
@@ -117,54 +100,5 @@ export class SolanaClientService {
     }
 
     throw new Error('Transaction confirmation timeout');
-  }
-
-  /**
-   * Get priority fee from Helius API
-   */
-  private async getHeliusPriorityFee(): Promise<number> {
-    try {
-      const url = `https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getPriorityFeeEstimate',
-          params: [
-            {
-              accountKeys: [],
-              options: {
-                includeAllPriorityFeeLevels: true,
-              },
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn('Helius priority fee request failed, using default');
-        return this.getDefaultPriorityFee();
-      }
-
-      const data = (await response.json()) as {
-        result?: HeliusPriorityFeeResponse;
-      };
-
-      const priorityFee = data.result?.priorityFeeEstimate ?? 0;
-      return Math.ceil(priorityFee);
-    } catch (error) {
-      console.warn('Error fetching Helius priority fee:', error);
-      return this.getDefaultPriorityFee();
-    }
-  }
-
-  /**
-   * Get default priority fee
-   */
-  private getDefaultPriorityFee(): number {
-    return 1000; // 1000 microlamports per CU
   }
 }

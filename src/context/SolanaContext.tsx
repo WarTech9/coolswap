@@ -17,8 +17,7 @@ export function SolanaClientProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SolanaContextType>(() => {
     const solanaClient = new SolanaClientService(
       env.SOLANA_RPC_URL,
-      env.SOLANA_WS_URL,
-      env.HELIUS_API_KEY
+      env.SOLANA_WS_URL
     );
 
     return { solanaClient };

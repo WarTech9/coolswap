@@ -14,3 +14,5 @@ export { useSwapExecution } from './useSwapExecution';
 export type { ExecutionStatus, UseSwapExecutionResult } from './useSwapExecution';
 export { useOrderStatus } from './useOrderStatus';
 export type { UseOrderStatusResult } from './useOrderStatus';
+export { useGasFee } from './useGasFee';
+export type { GasFeeEstimate } from './useGasFee';
