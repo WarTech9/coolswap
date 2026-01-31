@@ -14,7 +14,7 @@ import {
   useDestinationTokens,
   useTokenBalance,
   useQuote,
-  useSwapExecution,
+  useUnifiedSwapExecution,
   useOrderStatus,
 } from './hooks';
 import { DESTINATION_CHAINS } from './config/chains';
@@ -84,7 +84,7 @@ function SwapForm() {
     resume: resumeQuote,
   } = useQuote(quoteParams);
 
-  // Swap execution hook
+  // Swap execution hook - automatically uses deBridge or Relay based on provider
   const {
     execute: executeSwap,
     isExecuting,
@@ -92,7 +92,7 @@ function SwapForm() {
     error: executionError,
     status: executionStatus,
     reset: resetExecution,
-  } = useSwapExecution(quote, state.sourceToken, pauseQuote, resumeQuote);
+  } = useUnifiedSwapExecution(quote, state.sourceToken, pauseQuote, resumeQuote);
 
   // Order status tracking - start polling after tx is confirmed
   const orderId = executionStatus === 'completed' ? quote?.id ?? null : null;
@@ -274,9 +274,9 @@ function App() {
       }}
     >
       <SolanaClientProvider>
-        <BridgeProvider>
-          <TokenProvider>
-            <GasSponsorProvider>
+        <GasSponsorProvider>
+          <BridgeProvider>
+            <TokenProvider>
               <WalletProvider>
                 <SwapProvider>
                   <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -296,9 +296,9 @@ function App() {
                   </div>
                 </SwapProvider>
               </WalletProvider>
-            </GasSponsorProvider>
-          </TokenProvider>
-        </BridgeProvider>
+            </TokenProvider>
+          </BridgeProvider>
+        </GasSponsorProvider>
       </SolanaClientProvider>
     </SolanaHooksProvider>
   );

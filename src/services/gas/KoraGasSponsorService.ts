@@ -188,4 +188,17 @@ export class KoraGasSponsorService implements GasSponsorService {
     this.cachedSupportedTokens = response.tokens;
     return this.cachedSupportedTokens;
   }
+
+  /**
+   * Sign transaction without submitting (for Relay depositFeePayer flow)
+   * Kora signs as fee payer and returns the signed transaction
+   *
+   * SECURITY: This is used when Kora must sign FIRST (before user).
+   * Relay requires this to prevent users from modifying unsigned transactions
+   * to drain the fee payer wallet.
+   */
+  async signTransaction(transaction: string): Promise<string> {
+    const response = await this.client.signTransaction({ transaction });
+    return response.signed_transaction;
+  }
 }

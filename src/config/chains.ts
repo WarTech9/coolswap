@@ -30,6 +30,18 @@ export const DEBRIDGE_CHAIN_IDS: Record<ChainId, number> = {
   bnb: 56,
 };
 
+// Relay uses standard EVM chain IDs as strings, 'solana' for Solana
+export const RELAY_CHAIN_IDS: Record<ChainId, string> = {
+  solana: 'solana',
+  ethereum: '1',
+  arbitrum: '42161',
+  base: '8453',
+  polygon: '137',
+  optimism: '10',
+  avalanche: '43114',
+  bnb: '56',
+};
+
 export const SUPPORTED_CHAINS: Record<ChainId, Chain> = {
   solana: {
     id: 'solana',

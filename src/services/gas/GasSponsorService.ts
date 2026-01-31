@@ -103,4 +103,13 @@ export interface GasSponsorService {
    * @returns Array of token mint addresses (e.g., USDC, USDT)
    */
   getSupportedTokens(): Promise<string[]>;
+
+  /**
+   * Sign transaction without submitting (for Relay depositFeePayer flow)
+   * Kora signs as fee payer and returns the signed transaction
+   * Security: Kora MUST sign first, then user signs (prevents wallet draining)
+   * @param transaction - Base64-encoded transaction
+   * @returns Signed transaction as base64
+   */
+  signTransaction(transaction: string): Promise<string>;
 }

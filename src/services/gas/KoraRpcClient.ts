@@ -39,6 +39,12 @@ export interface SupportedTokensResponse {
   tokens: string[];
 }
 
+/** Response from signTransaction RPC call (signs without submitting) */
+export interface SignTransactionResponse {
+  signed_transaction: string;
+  signer_pubkey: string;
+}
+
 /** JSON-RPC error structure */
 interface RpcError {
   code: number;
@@ -124,5 +130,17 @@ export class KoraRpcClient {
    */
   async getSupportedTokens(): Promise<SupportedTokensResponse> {
     return this.rpcRequest<SupportedTokensResponse>('getSupportedTokens');
+  }
+
+  /**
+   * Sign transaction with fee payer WITHOUT submitting to network
+   * Used for Relay's depositFeePayer flow where Kora must sign first
+   */
+  async signTransaction(params: {
+    transaction: string;
+    signer_key?: string;
+    sig_verify?: boolean;
+  }): Promise<SignTransactionResponse> {
+    return this.rpcRequest<SignTransactionResponse>('signTransaction', params);
   }
 }
