@@ -8,3 +8,5 @@ export { useSolanaRpc } from './useSolanaRpc';
 export { useSourceTokens } from './useSourceTokens';
 export { useDestinationTokens } from './useDestinationTokens';
 export { useTokenBalance } from './useTokenBalance';
+export { useQuote } from './useQuote';
+export type { UseQuoteParams, UseQuoteResult } from './useQuote';

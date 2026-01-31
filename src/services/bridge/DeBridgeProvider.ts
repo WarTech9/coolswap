@@ -52,7 +52,7 @@ interface DeBridgeCreateTxResponse {
   tx: {
     data: string;
   };
-  prependedOperatingExpenses?: string;
+  prependedOperatingExpenseCost?: string;
   fixFee?: string;
 }
 
@@ -208,8 +208,9 @@ export class DeBridgeProvider implements IBridgeProvider {
         sourceAmount: data.estimation.srcChainTokenIn.amount,
         destinationAmount: data.estimation.dstChainTokenOut.amount,
         fees: {
-          operatingExpenses: data.prependedOperatingExpenses ?? '0',
-          protocolFee: data.fixFee ?? '0',
+          operatingExpenses: data.prependedOperatingExpenseCost ?? '0',
+          // fixFee is the flat fee in source chain's native token (SOL lamports)
+          networkFee: data.fixFee ?? '0',
         },
         estimatedTimeSeconds: data.order.approximateFulfillmentDelay,
         expiresAt,

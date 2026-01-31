@@ -11,9 +11,9 @@
 [x] Chain Selector Component - Destination chain dropdown
 
 ## Phase 3: Quote System
-[ ] Quote Hook (useQuote) - Fetch quotes from deBridge, 30-second auto-refresh
-[ ] Quote Display Component - Fee breakdown, countdown timer, slippage setting
-[ ] Amount Input Component - With max button and validation
+[x] Quote Hook (useQuote) - Fetch quotes from deBridge, 30-second auto-refresh
+[x] Quote Display Component - Fee breakdown, countdown timer, slippage setting
+[x] Amount Input Component - With max button and validation
 
 ## Phase 4: Transaction Execution
 [ ] Swap Execution - Deserialize, update priority fee, sign, submit

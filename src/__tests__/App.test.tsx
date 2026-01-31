@@ -13,6 +13,7 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText(/From \(Solana\)/i)).toBeInTheDocument();
     expect(screen.getByText(/To Chain/i)).toBeInTheDocument();
-    expect(screen.getByText(/Get Quote/i)).toBeInTheDocument();
+    // Swap button shows "Connect Wallet" when not connected
+    expect(screen.getAllByText(/Connect Wallet/i).length).toBeGreaterThan(0);
   });
 });

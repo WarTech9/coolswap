@@ -37,7 +37,8 @@ export interface QuoteRequest {
 
 export interface FeeBreakdown {
   operatingExpenses: string;
-  protocolFee: string;
+  /** Flat network fee in source chain's native token (e.g., SOL lamports) */
+  networkFee: string;
   totalFeeUsd?: number;
 }
 

@@ -1,22 +1,32 @@
+import { useState, useMemo } from 'react';
 import { SolanaProvider as SolanaHooksProvider } from '@solana/react-hooks';
 import { SolanaClientProvider } from './context/SolanaContext';
 import { BridgeProvider } from './context/BridgeContext';
 import { TokenProvider } from './context/TokenContext';
-import { WalletProvider } from './context/WalletContext';
+import { WalletProvider, useWalletContext } from './context/WalletContext';
 import { SwapProvider, useSwapContext } from './context/SwapContext';
 import { WalletButton } from './components/wallet/WalletButton';
-import { TokenSelector, SelectedTokenBalance } from './components/token';
-import { ChainSelector } from './components/swap';
-import { useSourceTokens, useDestinationTokens } from './hooks';
+import { TokenSelector } from './components/token';
+import { ChainSelector, AmountInput, QuoteDisplay } from './components/swap';
+import {
+  useSourceTokens,
+  useDestinationTokens,
+  useTokenBalance,
+  useQuote,
+} from './hooks';
 import { DESTINATION_CHAINS } from './config/chains';
 import { env } from './config/env';
 
 function SwapForm() {
   const { state, dispatch } = useSwapContext();
+  const { connected, publicKey } = useWalletContext();
   const { tokens: sourceTokens, isLoading: loadingSource } = useSourceTokens();
   const { tokens: destTokens, isLoading: loadingDest } = useDestinationTokens(
     state.destinationChain
   );
+
+  // Local slippage state (default 0.5%)
+  const [slippage, setSlippage] = useState(0.005);
 
   // Find selected tokens/chain from state
   const selectedSourceToken =
@@ -25,6 +35,45 @@ function SwapForm() {
     destTokens.find((t) => t.address === state.destinationToken) ?? null;
   const selectedChain =
     DESTINATION_CHAINS.find((c) => c.id === state.destinationChain) ?? null;
+
+  // Get balance for selected source token
+  const { balance, isLoading: balanceLoading } = useTokenBalance(selectedSourceToken);
+
+  // Build quote params - only when all required fields are filled
+  const quoteParams = useMemo(() => {
+    if (!connected || !publicKey || !selectedSourceToken) return null;
+    return {
+      sourceToken: state.sourceToken,
+      destinationChain: state.destinationChain,
+      destinationToken: state.destinationToken,
+      amount: state.amount,
+      sourceTokenDecimals: selectedSourceToken.decimals,
+      senderAddress: publicKey,
+      recipientAddress: state.recipientAddress,
+      slippage,
+    };
+  }, [
+    connected,
+    publicKey,
+    selectedSourceToken,
+    state.sourceToken,
+    state.destinationChain,
+    state.destinationToken,
+    state.amount,
+    state.recipientAddress,
+    slippage,
+  ]);
+
+  // Fetch quote
+  const {
+    quote,
+    isLoading: quoteLoading,
+    error: quoteError,
+    secondsUntilExpiry,
+  } = useQuote(quoteParams);
+
+  // Determine if swap button should be enabled
+  const canSwap = connected && quote !== null && !quoteLoading;
 
   return (
     <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 shadow-xl space-y-4">
@@ -40,24 +89,18 @@ function SwapForm() {
           isLoading={loadingSource}
           label="Select source token"
         />
-        <SelectedTokenBalance token={selectedSourceToken} />
       </div>
 
       {/* Amount Input */}
       {selectedSourceToken && (
         <div>
           <label className="text-sm text-slate-400 mb-1 block">Amount</label>
-          <input
-            type="text"
-            inputMode="decimal"
+          <AmountInput
             value={state.amount}
-            onChange={(e) =>
-              dispatch({ type: 'SET_AMOUNT', payload: e.target.value })
-            }
-            placeholder="0.00"
-            className="w-full bg-slate-700/50 rounded-lg p-3 text-white text-lg
-                       placeholder-slate-500 focus:outline-none focus:ring-2
-                       focus:ring-solana-purple"
+            onChange={(value) => dispatch({ type: 'SET_AMOUNT', payload: value })}
+            token={selectedSourceToken}
+            balance={balance}
+            balanceLoading={balanceLoading}
           />
         </div>
       )}
@@ -110,13 +153,32 @@ function SwapForm() {
         </div>
       )}
 
-      {/* Swap Button (placeholder for Phase 3) */}
+      {/* Quote Display */}
+      <QuoteDisplay
+        quote={quote}
+        sourceToken={selectedSourceToken}
+        destinationToken={selectedDestToken}
+        isLoading={quoteLoading}
+        error={quoteError}
+        secondsUntilExpiry={secondsUntilExpiry}
+        slippage={slippage}
+        onSlippageChange={setSlippage}
+      />
+
+      {/* Swap Button */}
       <button
-        disabled
-        className="w-full bg-gradient-to-r from-solana-purple to-solana-green
-                   text-white font-medium py-3 rounded-lg opacity-50 cursor-not-allowed"
+        disabled={!canSwap}
+        className={`w-full bg-gradient-to-r from-solana-purple to-solana-green
+                   text-white font-medium py-3 rounded-lg transition-opacity
+                   ${canSwap ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
       >
-        Get Quote (Phase 3)
+        {!connected
+          ? 'Connect Wallet'
+          : quoteLoading
+            ? 'Fetching Quote...'
+            : quote
+              ? 'Swap (Phase 4)'
+              : 'Enter Amount'}
       </button>
     </div>
   );
