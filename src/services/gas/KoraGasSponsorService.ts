@@ -25,25 +25,23 @@ import type {
  */
 export class KoraGasSponsorService implements GasSponsorService {
   private client: KoraRpcClient;
-  private cachedFeePayer: string | null = null;
-  private cachedSupportedTokens: string[] | null = null;
 
   constructor(koraUrl: string) {
     this.client = new KoraRpcClient(koraUrl);
   }
 
   /**
-   * Get the fee payer's public address
-   * Results are cached to avoid repeated API calls
+   * Get the fee payer's public address (server wallet)
+   * Returns the configured server wallet public key from environment
    */
   async getFeePayer(): Promise<string> {
-    if (this.cachedFeePayer) {
-      return this.cachedFeePayer;
+    const { env } = await import('@/config/env');
+
+    if (!env.SERVER_WALLET_PUBLIC_KEY) {
+      throw new Error('SERVER_WALLET_PUBLIC_KEY not configured');
     }
 
-    const response = await this.client.getPayerSigner();
-    this.cachedFeePayer = response.signer_address;
-    return this.cachedFeePayer;
+    return env.SERVER_WALLET_PUBLIC_KEY;
   }
 
   /**
@@ -232,16 +230,12 @@ export class KoraGasSponsorService implements GasSponsorService {
 
   /**
    * Get list of tokens supported for gas payment
-   * Results are cached since the list doesn't change during a session
+   * Returns a static list from config (no longer calls Kora RPC)
    */
   async getSupportedTokens(): Promise<string[]> {
-    if (this.cachedSupportedTokens) {
-      return this.cachedSupportedTokens;
-    }
-
-    const response = await this.client.getSupportedTokens();
-    this.cachedSupportedTokens = response.tokens;
-    return this.cachedSupportedTokens;
+    // Import here to avoid circular dependency issues
+    const { ALLOWED_SPL_PAID_TOKENS } = await import('@/config/supportedTokens');
+    return [...ALLOWED_SPL_PAID_TOKENS];
   }
 
   /**
