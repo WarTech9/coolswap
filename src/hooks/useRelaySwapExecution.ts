@@ -199,7 +199,7 @@ export function useRelaySwapExecution(
 
       // 1e. Build payment instruction: user → server (token transfer)
       const userAddress = address(wallet.account.address);
-      const serverAddress = address(serverWallet);
+      const serverAddress = address(serverWallet.trim()); // Trim whitespace from env variable
       const mintAddress = address(sourceTokenAddress);
 
       // Find user's ATA (source)
@@ -348,8 +348,12 @@ export function useRelaySwapExecution(
       // Security: Server validates transaction before signing
       const txBase64 = Buffer.from(encodedBytes).toString('base64');
 
+      // Use relative path for production (works on any Vercel domain)
+      // Only use VITE_BACKEND_URL if explicitly set (for custom backend)
       const apiUrl = import.meta.env.VITE_BACKEND_URL || '';
-      const response = await fetch(`${apiUrl}/api/sign-transaction`, {
+      const signEndpoint = apiUrl ? `${apiUrl}/api/sign-transaction` : '/api/sign-transaction';
+
+      const response = await fetch(signEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transaction: txBase64 }),

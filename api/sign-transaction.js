@@ -53,7 +53,8 @@ export default async function handler(req, res) {
     // Parse server keypair from JSON array
     let serverKeypair;
     try {
-      const secretKeyArray = JSON.parse(serverSecretKey);
+      // Trim whitespace that may be added by Vercel environment variable UI
+      const secretKeyArray = JSON.parse(serverSecretKey.trim());
       serverKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
     } catch (err) {
       console.error('Failed to parse server wallet secret key:', err);
