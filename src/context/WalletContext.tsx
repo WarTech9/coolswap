@@ -3,7 +3,7 @@
  * Wraps @solana/react-hooks wallet functionality for app use
  */
 
-import { createContext, useContext, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useMemo, ReactNode, useState, useCallback } from 'react';
 import { useWalletConnection } from '@solana/react-hooks';
 
 interface WalletContextType {
@@ -11,6 +11,10 @@ interface WalletContextType {
   publicKey: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
+  showWalletSelector: boolean;
+  setShowWalletSelector: (show: boolean) => void;
+  availableWallets: Array<{ id: string; name: string; icon?: string }>;
+  connectWallet: (walletId: string) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -24,6 +28,27 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     wallet,
   } = useWalletConnection();
 
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
+
+  // Get available wallets from connectors
+  const availableWallets = useMemo(() => {
+    return connectors.map(connector => ({
+      id: connector.id,
+      name: connector.name,
+      icon: connector.icon,
+    }));
+  }, [connectors]);
+
+  const connectWallet = useCallback(async (walletId: string) => {
+    try {
+      await walletConnect(walletId);
+      setShowWalletSelector(false);
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      throw error;
+    }
+  }, [walletConnect]);
+
   const value = useMemo<WalletContextType>(() => {
     // Get public key from wallet session if connected
     const publicKeyStr = wallet?.account?.address?.toString() ?? null;
@@ -32,18 +57,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       connected,
       publicKey: publicKeyStr,
       connect: async () => {
-        try {
-          // Use the first available connector
-          const connector = connectors[0];
-          if (!connector) {
-            throw new Error(
-              'No wallet found. Please install Phantom, Solflare, or another Solana wallet.'
-            );
-          }
-          await walletConnect(connector.id);
-        } catch (error) {
-          console.error('Failed to connect wallet:', error);
-          throw error;
+        // Show wallet selector if multiple wallets available
+        if (connectors.length > 1) {
+          setShowWalletSelector(true);
+        } else if (connectors.length === 1 && connectors[0]) {
+          // Connect directly if only one wallet
+          await connectWallet(connectors[0].id);
+        } else {
+          throw new Error(
+            'No wallet found. Please install Phantom, Solflare, or another Solana wallet.'
+          );
         }
       },
       disconnect: async () => {
@@ -54,8 +77,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
+      showWalletSelector,
+      setShowWalletSelector,
+      availableWallets,
+      connectWallet,
     };
-  }, [connected, connectors, wallet, walletConnect, walletDisconnect]);
+  }, [connected, connectors, wallet, walletDisconnect, showWalletSelector, availableWallets, connectWallet]);
 
   return (
     <WalletContext.Provider value={value}>{children}</WalletContext.Provider>

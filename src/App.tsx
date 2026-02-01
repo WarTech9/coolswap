@@ -7,6 +7,7 @@ import { WalletProvider, useWalletContext } from './context/WalletContext';
 import { SwapProvider, useSwapContext } from './context/SwapContext';
 import { GasSponsorProvider } from './context/GasSponsorContext';
 import { WalletButton } from './components/wallet/WalletButton';
+import { WalletSelectorModal } from './components/wallet/WalletSelectorModal';
 import { TokenSelector } from './components/token';
 import { ChainSelector, AmountInput, QuoteDisplay, SwapStatusModal } from './components/swap';
 import {
@@ -407,6 +408,9 @@ function App() {
                         </div>
                       </div>
                     </main>
+
+                    {/* Wallet Selector Modal */}
+                    <WalletSelectorModal />
                   </div>
                 </SwapProvider>
               </WalletProvider>
