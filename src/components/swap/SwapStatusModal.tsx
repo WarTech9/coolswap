@@ -39,29 +39,26 @@ function getExplorerUrl(signature: string): string {
 }
 
 /**
- * Spinning loader animation
+ * Spinning ice crystal loader animation
  */
 function Spinner({ className = '' }: { className?: string }) {
   return (
     <svg
       className={`animate-spin ${className}`}
-      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 100 100"
       fill="none"
-      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
     >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
       <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        d="M50 10 L50 90 M10 50 L90 50 M25 25 L75 75 M75 25 L25 75"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.4"
       />
+      <circle cx="50" cy="50" r="8" stroke="currentColor" strokeWidth="3" fill="none" />
+      <circle cx="50" cy="10" r="5" fill="currentColor" />
+      <circle cx="90" cy="50" r="5" fill="currentColor" />
     </svg>
   );
 }
@@ -180,29 +177,29 @@ export function SwapStatusModal({
       case 'signing':
         return (
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-solana-purple/20 rounded-full flex items-center justify-center mb-4">
-              <WalletIcon className="w-8 h-8 text-solana-purple" />
+            <div className="mx-auto w-16 h-16 bg-winter-cyan/20 rounded-full flex items-center justify-center mb-4 border border-winter-cyan/30">
+              <WalletIcon className="w-8 h-8 text-winter-cyan" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-winter-text mb-2">
               Waiting for Wallet
             </h3>
-            <p className="text-slate-400 text-sm">
+            <p className="text-winter-textSecondary text-sm">
               Please approve the transaction in your wallet...
             </p>
-            <Spinner className="w-6 h-6 text-solana-purple mx-auto mt-4" />
+            <Spinner className="w-6 h-6 text-winter-cyan mx-auto mt-4" />
           </div>
         );
 
       case 'confirming':
         return (
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-              <Spinner className="w-8 h-8 text-blue-500" />
+            <div className="mx-auto w-16 h-16 bg-winter-cyan/20 rounded-full flex items-center justify-center mb-4 border border-winter-cyan/30">
+              <Spinner className="w-8 h-8 text-winter-cyan" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-winter-text mb-2">
               Confirming Transaction
             </h3>
-            <p className="text-slate-400 text-sm mb-4">
+            <p className="text-winter-textSecondary text-sm mb-4">
               Your transaction is being confirmed on Solana...
             </p>
             {txSignature && (
@@ -210,7 +207,7 @@ export function SwapStatusModal({
                 href={getExplorerUrl(txSignature)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-solana-purple hover:text-solana-purple/80 font-mono"
+                className="text-sm text-winter-cyan hover:text-winter-glacial font-mono"
               >
                 {truncateSignature(txSignature)}
               </a>
@@ -228,29 +225,29 @@ export function SwapStatusModal({
                 {/* Order Created - waiting for fulfillment */}
                 {orderLoading || (orderInfo && orderInfo.status === OrderStatus.CREATED) ? (
                   <>
-                    <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                      <Spinner className="w-8 h-8 text-blue-500" />
+                    <div className="mx-auto w-16 h-16 bg-winter-cyan/20 rounded-full flex items-center justify-center mb-4 border border-winter-cyan/30">
+                      <Spinner className="w-8 h-8 text-winter-cyan" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-winter-text mb-2">
                       Order Submitted
                     </h3>
-                    <p className="text-slate-400 text-sm mb-4">
+                    <p className="text-winter-textSecondary text-sm mb-4">
                       Your order has been submitted to the bridge. Waiting for fulfillment...
                     </p>
                   </>
                 ) : orderInfo && (orderInfo.status === OrderStatus.FULFILLED || orderInfo.status === OrderStatus.COMPLETED) ? (
                   <>
-                    <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
-                      <CheckIcon className="w-8 h-8 text-green-500" />
+                    <div className="mx-auto w-16 h-16 bg-winter-cyan/20 rounded-full flex items-center justify-center mb-4 border border-winter-cyan/30 shadow-sm">
+                      <CheckIcon className="w-8 h-8 text-winter-cyan" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-winter-text mb-2">
                       Tokens Delivered!
                     </h3>
-                    <p className="text-slate-400 text-sm mb-4">
+                    <p className="text-winter-textSecondary text-sm mb-4">
                       Your tokens have been delivered to the destination chain.
                     </p>
                     {orderInfo.destinationTxHash && (
-                      <p className="text-xs text-slate-500 mb-2 font-mono">
+                      <p className="text-xs text-winter-textSecondary/70 mb-2 font-mono">
                         Dest TX: {truncateSignature(orderInfo.destinationTxHash)}
                       </p>
                     )}
@@ -260,10 +257,10 @@ export function SwapStatusModal({
                     <div className="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
                       <XIcon className="w-8 h-8 text-red-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-winter-text mb-2">
                       Order {orderInfo.status === OrderStatus.CANCELLED ? 'Cancelled' : 'Failed'}
                     </h3>
-                    <p className="text-slate-400 text-sm mb-4">
+                    <p className="text-winter-textSecondary text-sm mb-4">
                       {orderInfo.status === OrderStatus.CANCELLED
                         ? 'Your order was cancelled.'
                         : 'Your order failed to complete. Please contact support.'}
@@ -271,13 +268,13 @@ export function SwapStatusModal({
                   </>
                 ) : (
                   <>
-                    <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                      <Spinner className="w-8 h-8 text-blue-500" />
+                    <div className="mx-auto w-16 h-16 bg-winter-cyan/20 rounded-full flex items-center justify-center mb-4">
+                      <Spinner className="w-8 h-8 text-winter-cyan" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-winter-text mb-2">
                       Processing Order
                     </h3>
-                    <p className="text-slate-400 text-sm mb-4">
+                    <p className="text-winter-textSecondary text-sm mb-4">
                       Your order is being processed...
                     </p>
                   </>
@@ -289,7 +286,7 @@ export function SwapStatusModal({
                     href={getExplorerUrl(txSignature)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-solana-purple hover:text-solana-purple/80 mb-4"
+                    className="inline-flex items-center gap-2 text-sm text-winter-cyan hover:text-winter-glacial mb-4 transition-colors"
                   >
                     View Solana TX
                     <ExternalLinkIcon className="w-4 h-4" />
@@ -300,8 +297,8 @@ export function SwapStatusModal({
                 {isOrderTerminal && (
                   <button
                     onClick={onClose}
-                    className="mt-4 w-full bg-gradient-to-r from-solana-purple to-solana-green
-                               text-white font-medium py-3 rounded-lg hover:opacity-90 transition-opacity"
+                    className="mt-4 w-full bg-gradient-to-r from-solana-purple to-winter-cyan
+                               text-white font-medium py-3 rounded-lg hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98] transition-all"
                   >
                     Done
                   </button>
@@ -312,10 +309,10 @@ export function SwapStatusModal({
                 <div className="mx-auto w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
                   <CheckIcon className="w-8 h-8 text-yellow-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">
+                <h3 className="text-lg font-semibold text-winter-text mb-2">
                   Transaction Confirmed
                 </h3>
-                <p className="text-slate-400 text-sm mb-2">
+                <p className="text-winter-textSecondary text-sm mb-2">
                   Your transaction was confirmed on Solana.
                 </p>
                 <p className="text-yellow-400 text-xs mb-4">
@@ -345,10 +342,10 @@ export function SwapStatusModal({
                 <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
                   <CheckIcon className="w-8 h-8 text-green-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">
+                <h3 className="text-lg font-semibold text-winter-text mb-2">
                   Swap Completed!
                 </h3>
-                <p className="text-slate-400 text-sm mb-4">
+                <p className="text-winter-textSecondary text-sm mb-4">
                   Your cross-chain swap has been submitted successfully.
                 </p>
                 {txSignature && (
@@ -380,10 +377,10 @@ export function SwapStatusModal({
             <div className="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
               <XIcon className="w-8 h-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-winter-text mb-2">
               Transaction Failed
             </h3>
-            <p className="text-slate-400 text-sm mb-4">
+            <p className="text-winter-textSecondary text-sm mb-4">
               {error || 'An unknown error occurred'}
             </p>
             {txSignature && (
@@ -400,16 +397,16 @@ export function SwapStatusModal({
               {onRetry && (
                 <button
                   onClick={onRetry}
-                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium
-                             py-3 rounded-lg transition-colors"
+                  className="flex-1 bg-white/60 hover:bg-white/80 text-winter-text font-medium
+                             py-3 rounded-lg transition-colors border border-winter-border"
                 >
                   Try Again
                 </button>
               )}
               <button
                 onClick={onClose}
-                className={`${onRetry ? 'flex-1' : 'w-full'} bg-slate-600 hover:bg-slate-500
-                           text-white font-medium py-3 rounded-lg transition-colors`}
+                className={`${onRetry ? 'flex-1' : 'w-full'} bg-white/60 hover:bg-white/80
+                           text-winter-text font-medium py-3 rounded-lg transition-colors border border-winter-border`}
               >
                 Close
               </button>
@@ -423,15 +420,15 @@ export function SwapStatusModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center animate-crystallize">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#1A3A52]/60 backdrop-blur-xl"
         onClick={status === 'completed' || status === 'error' ? onClose : undefined}
       />
 
       {/* Modal */}
-      <div className="relative bg-slate-800 rounded-2xl p-4 sm:p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-4 border border-slate-700/50 shadow-xl">
+      <div className="relative bg-white/95 rounded-2xl p-4 sm:p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-4 border-2 border-winter-border shadow-lg backdrop-blur-2xl">
         {renderContent()}
       </div>
     </div>

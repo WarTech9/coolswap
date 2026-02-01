@@ -19,6 +19,8 @@ coverage/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.vercel
 *.pem
 
 # Server wallet (NEVER commit secret keys!)

@@ -36,8 +36,9 @@ export function ChainSelector({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-700/50 hover:bg-slate-700 rounded-lg p-3
-                   flex items-center gap-2 transition-colors text-left"
+        className="w-full bg-white/60 hover:bg-white/80 rounded-lg p-3
+                   flex items-center gap-2 transition-all text-left backdrop-blur-lg
+                   border border-winter-border hover:border-winter-border shadow-sm"
       >
         {selectedChain ? (
           <>
@@ -45,18 +46,18 @@ export function ChainSelector({
               <img
                 src={CHAIN_LOGOS[selectedChain.id]}
                 alt={selectedChain.name}
-                className="w-6 h-6 rounded-full"
+                className="w-6 h-6 rounded-full border border-winter-border"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
             )}
-            <span className="font-medium text-white">{selectedChain.name}</span>
+            <span className="font-medium text-winter-text">{selectedChain.name}</span>
           </>
         ) : (
-          <span className="text-slate-400">{label}</span>
+          <span className="text-winter-textSecondary">{label}</span>
         )}
-        <ChevronDownIcon className="ml-auto w-4 h-4 text-slate-400" />
+        <ChevronDownIcon className="ml-auto w-4 h-4 text-winter-textSecondary" />
       </button>
 
       {isOpen && (
@@ -68,8 +69,8 @@ export function ChainSelector({
           />
 
           {/* Dropdown */}
-          <div className="absolute z-50 mt-2 w-full bg-slate-800 border border-slate-700
-                          rounded-lg shadow-xl max-h-64 overflow-y-auto">
+          <div className="absolute z-50 mt-2 w-full bg-white border-2 border-winter-border
+                          rounded-lg shadow-lg max-h-64 overflow-y-auto">
             {chains.map((chain) => (
               <button
                 key={chain.id}
@@ -78,19 +79,19 @@ export function ChainSelector({
                   setIsOpen(false);
                 }}
                 className="w-full px-3 py-2 flex items-center gap-2
-                           hover:bg-slate-700/50 transition-colors text-left"
+                           hover:bg-[#F5FAFB] transition-colors text-left"
               >
                 {CHAIN_LOGOS[chain.id] && (
                   <img
                     src={CHAIN_LOGOS[chain.id]}
                     alt={chain.name}
-                    className="w-6 h-6 rounded-full"
+                    className="w-6 h-6 rounded-full border border-winter-border"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
                 )}
-                <span className="font-medium text-white">{chain.name}</span>
+                <span className="font-medium text-winter-text">{chain.name}</span>
               </button>
             ))}
           </div>

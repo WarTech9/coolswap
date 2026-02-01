@@ -62,25 +62,29 @@ export function QuoteDisplay({
     sourceTokenAddress ?? null,
     sourceToken?.decimals ?? 6
   );
-  // Show nothing if no quote data and not loading
-  if (!quote && !isLoading && !error) {
-    return null;
-  }
-
   return (
-    <div className="bg-slate-700/30 rounded-lg p-4 space-y-3">
+    <div className="bg-white/60 rounded-lg p-3 space-y-2 backdrop-blur-lg border border-winter-border">
+      {/* Placeholder when no quote */}
+      {!quote && !isLoading && !error && (
+        <div className="flex items-center justify-center py-8 text-center">
+          <p className="text-winter-textSecondary text-sm">
+            Enter amount and select tokens to see quote details
+          </p>
+        </div>
+      )}
+
       {/* Loading state */}
       {isLoading && !quote && (
         <div className="flex items-center justify-center py-4">
           <LoadingSpinner />
-          <span className="ml-2 text-slate-400">Fetching quote...</span>
+          <span className="ml-2 text-winter-textSecondary">Fetching quote...</span>
         </div>
       )}
 
       {/* Error state */}
       {error && !isLoading && (
-        <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
-          <p className="text-red-400 text-sm">
+        <div className="bg-red-50 border border-red-300 rounded-lg p-3">
+          <p className="text-red-700 text-sm">
             {getErrorMessage(error, sourceToken?.symbol)}
           </p>
         </div>
@@ -91,30 +95,30 @@ export function QuoteDisplay({
         <>
           {/* You receive */}
           <div className="flex items-center justify-between">
-            <span className="text-slate-400 text-sm">You receive</span>
-            <span className="text-white font-medium">
+            <span className="text-winter-textSecondary text-sm">You receive</span>
+            <span className="text-winter-text font-medium">
               {destinationToken
                 ? formatTokenAmount(quote.destinationAmount, destinationToken.decimals)
                 : quote.destinationAmount}{' '}
-              <span className="text-slate-400">{destinationToken?.symbol}</span>
+              <span className="text-winter-textSecondary">{destinationToken?.symbol}</span>
             </span>
           </div>
 
           {/* Fee breakdown */}
-          <div className="border-t border-slate-600/50 pt-3 space-y-2">
+          <div className="border-t border-winter-border pt-3 space-y-2">
             {/* Relay fee - shown for Relay provider (already deducted from output) */}
             {quote.fees.relayerFeeFormatted && (
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-1">
-                  <span className="text-slate-400">Relay fee</span>
+                  <span className="text-winter-textSecondary">Relay fee</span>
                   <span
-                    className="text-slate-500 cursor-help"
+                    className="text-winter-textSecondary/70 cursor-help"
                     title="Bridge fee (already deducted from amount you receive)"
                   >
                     <InfoIcon />
                   </span>
                 </div>
-                <span className="text-slate-500">
+                <span className="text-winter-text">
                   -{quote.fees.relayerFeeFormatted} {sourceToken?.symbol}
                 </span>
               </div>
@@ -124,15 +128,15 @@ export function QuoteDisplay({
             {quote.fees.networkFee !== '0' && (
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-1">
-                  <span className="text-slate-400">Bridge protocol fee</span>
+                  <span className="text-winter-textSecondary">Bridge protocol fee</span>
                   <span
-                    className="text-slate-500 cursor-help"
+                    className="text-winter-textSecondary/70 cursor-help"
                     title="Fee paid to bridge network validators"
                   >
                     <InfoIcon />
                   </span>
                 </div>
-                <span className="text-slate-300">
+                <span className="text-winter-text">
                   {formatSolAmount(quote.fees.networkFee)} SOL
                 </span>
               </div>
@@ -141,45 +145,45 @@ export function QuoteDisplay({
             {/* Gas sponsorship fee */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1">
-                <span className="text-slate-400">Gas sponsorship</span>
+                <span className="text-winter-textSecondary">Gas sponsorship</span>
                 {gasFee.isLoading && <LoadingSpinner size="sm" />}
                 <span
-                  className="text-slate-500 cursor-help"
+                  className="text-winter-textSecondary/70 cursor-help"
                   title="Solana transaction gas paid in tokens via Kora"
                 >
                   <InfoIcon />
                 </span>
               </div>
-              <span className="text-slate-300">
+              <span className="text-winter-text">
                 {gasFee.isLoading ? (
                   'Estimating...'
                 ) : gasFee.tokenAmount > BigInt(0) && sourceToken ? (
                   <>
                     +{formatTokenAmount(gasFee.tokenAmount.toString(), sourceToken.decimals)}{' '}
                     {sourceToken.symbol}
-                    <span className="text-slate-500 text-xs ml-1">
+                    <span className="text-winter-textSecondary/70 text-xs ml-1">
                       (~{formatSolAmount(gasFee.lamports.toString())} SOL)
                     </span>
                   </>
                 ) : quote.fees.gasSolFormatted ? (
                   // Fallback: Use Relay's gas data when Kora estimate fails
-                  <span className="text-slate-400">
+                  <span className="text-winter-text">
                     ~{quote.fees.gasSolFormatted} SOL
                     {quote.fees.gasUsd && (
-                      <span className="text-slate-500 text-xs ml-1">
+                      <span className="text-winter-textSecondary/70 text-xs ml-1">
                         (${quote.fees.gasUsd})
                       </span>
                     )}
                   </span>
                 ) : (
-                  <span className="text-slate-500">Sponsored</span>
+                  <span className="text-winter-text">Sponsored</span>
                 )}
               </span>
             </div>
             {/* Total from wallet */}
-            <div className="flex items-center justify-between text-sm border-t border-slate-600/30 pt-2 mt-2">
-              <span className="text-slate-300 font-medium">Total from wallet</span>
-              <span className="text-white font-medium">
+            <div className="flex items-center justify-between text-sm border-t border-winter-border pt-2 mt-2">
+              <span className="text-winter-text font-medium">Total from wallet</span>
+              <span className="text-winter-text font-semibold">
                 {sourceToken && gasFee.tokenAmount > BigInt(0) && !gasFee.error ? (
                   <>
                     {formatTokenAmount(
@@ -188,7 +192,7 @@ export function QuoteDisplay({
                     )}{' '}
                     {sourceToken.symbol}
                     {quote.fees.networkFee !== '0' && (
-                      <span className="text-slate-400 text-xs ml-1">
+                      <span className="text-winter-textSecondary text-xs ml-1">
                         + {formatSolAmount(quote.fees.networkFee)} SOL
                       </span>
                     )}
@@ -200,7 +204,7 @@ export function QuoteDisplay({
                       : quote.sourceAmount}{' '}
                     {sourceToken?.symbol}
                     {quote.fees.networkFee !== '0' && (
-                      <span className="text-slate-400 text-xs ml-1">
+                      <span className="text-winter-textSecondary text-xs ml-1">
                         + {formatSolAmount(quote.fees.networkFee)} SOL
                       </span>
                     )}
@@ -210,9 +214,9 @@ export function QuoteDisplay({
             </div>
             {/* Gas sponsorship note */}
             {!gasFee.error && gasFee.tokenAmount > BigInt(0) && (
-              <div className="flex items-start gap-1 text-xs text-slate-400 bg-slate-800/30 rounded px-2 py-1.5">
+              <div className="flex items-start gap-1 text-xs text-winter-textSecondary bg-white/40 rounded px-2 py-1.5 border border-winter-border">
                 <svg
-                  className="w-3 h-3 mt-0.5 flex-shrink-0 text-solana-purple"
+                  className="w-3 h-3 mt-0.5 flex-shrink-0 text-winter-cyan"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -222,15 +226,15 @@ export function QuoteDisplay({
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>Transaction gas is paid in {sourceToken?.symbol} via Kora sponsorship</span>
+                <span>Gas fees paid in {sourceToken?.symbol} </span>
               </div>
             )}
           </div>
 
           {/* Estimated time */}
-          <div className="flex items-center justify-between text-sm border-t border-slate-600/50 pt-3">
-            <span className="text-slate-400">Estimated time</span>
-            <span className="text-slate-300">
+          <div className="flex items-center justify-between text-sm border-t border-winter-border pt-3">
+            <span className="text-winter-textSecondary">Estimated time</span>
+            <span className="text-winter-text">
               ~{Math.ceil(quote.estimatedTimeSeconds / 60)} min
             </span>
           </div>
@@ -238,10 +242,10 @@ export function QuoteDisplay({
           {/* Countdown timer */}
           {secondsUntilExpiry !== null && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Quote expires</span>
+              <span className="text-winter-textSecondary">Quote expires</span>
               <div className="flex items-center gap-2">
                 {isLoading && <LoadingSpinner size="sm" />}
-                <span className={secondsUntilExpiry <= 5 ? 'text-yellow-400' : 'text-slate-300'}>
+                <span className={secondsUntilExpiry <= 5 ? 'text-orange-600 font-medium' : 'text-winter-text'}>
                   {secondsUntilExpiry}s
                 </span>
               </div>
@@ -251,19 +255,19 @@ export function QuoteDisplay({
       )}
 
       {/* Slippage setting */}
-      <div className="border-t border-slate-600/50 pt-3">
+      <div className="border-t border-winter-border pt-3">
         <div className="flex items-center justify-between">
-          <span className="text-slate-400 text-sm">Slippage tolerance</span>
+          <span className="text-winter-textSecondary text-sm">Slippage tolerance</span>
           <div className="flex items-center gap-1">
             {SLIPPAGE_OPTIONS.map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => onSlippageChange(option)}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
+                className={`px-2 py-1 text-xs rounded transition-all ${
                   slippage === option
-                    ? 'bg-solana-purple text-white'
-                    : 'bg-slate-600/50 text-slate-300 hover:bg-slate-600'
+                    ? 'bg-gradient-to-r from-solana-purple to-winter-cyan text-white shadow-md font-medium'
+                    : 'bg-white/50 text-winter-text hover:bg-white/70 border border-winter-border'
                 }`}
               >
                 {(option * 100).toFixed(1)}%
@@ -277,27 +281,24 @@ export function QuoteDisplay({
 }
 
 function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' }) {
-  const sizeClass = size === 'sm' ? 'w-3 h-3' : 'w-5 h-5';
+  const sizeClass = size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
   return (
     <svg
-      className={`${sizeClass} animate-spin text-solana-purple`}
-      xmlns="http://www.w3.org/2000/svg"
+      className={`${sizeClass} animate-spin text-winter-cyan`}
+      viewBox="0 0 100 100"
       fill="none"
-      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
     >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
       <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        d="M50 10 L50 90 M10 50 L90 50 M25 25 L75 75 M75 25 L25 75"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.4"
       />
+      <circle cx="50" cy="50" r="8" stroke="currentColor" strokeWidth="3" fill="none" />
+      <circle cx="50" cy="10" r="5" fill="currentColor" />
+      <circle cx="90" cy="50" r="5" fill="currentColor" />
     </svg>
   );
 }

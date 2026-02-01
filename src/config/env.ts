@@ -25,11 +25,14 @@ function getEnvVar(key: string, defaultValue?: string): string {
   if (value === undefined) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
-  return value;
+  // Trim whitespace and remove escaped newlines that may be added by Vercel UI
+  return value.replace(/\\n/g, '').trim();
 }
 
 function getOptionalEnvVar(key: string): string | undefined {
-  return import.meta.env[key];
+  const value = import.meta.env[key];
+  // Trim whitespace and remove escaped newlines that may be added by Vercel UI
+  return value ? value.replace(/\\n/g, '').trim() : undefined;
 }
 
 const solanaRpcUrl = getEnvVar(

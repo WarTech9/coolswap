@@ -128,16 +128,34 @@ function SwapForm() {
     resumeQuote();
   }, [resetExecution, resumeQuote]);
 
+  // Validate amount input
+  const amountError = useMemo(() => {
+    if (!state.amount) return null;
+    const amount = parseFloat(state.amount);
+    if (isNaN(amount)) return 'Invalid amount';
+    if (amount <= 0) return 'Amount must be greater than zero';
+    return null;
+  }, [state.amount]);
+
+  // Check if user has sufficient balance
+  const insufficientBalance = useMemo(() => {
+    if (!balance || !state.amount || !selectedSourceToken) return false;
+    const amount = parseFloat(state.amount);
+    const userBalance = parseFloat(balance);
+    if (isNaN(amount) || isNaN(userBalance)) return false;
+    return amount > userBalance;
+  }, [balance, state.amount, selectedSourceToken]);
+
   // Determine if swap button should be enabled
-  // Block when: not connected, no quote, loading, executing, quote expiring soon (<5s), or invalid address
+  // Block when: not connected, no quote, loading, executing, quote expiring soon (<5s), invalid address, invalid amount, or insufficient balance
   const quoteExpiringSoon = secondsUntilExpiry !== null && secondsUntilExpiry < 5;
-  const canSwap = connected && quote !== null && !quoteLoading && !isExecuting && !quoteExpiringSoon && !recipientAddressError;
+  const canSwap = connected && quote !== null && !quoteLoading && !isExecuting && !quoteExpiringSoon && !recipientAddressError && !amountError && !insufficientBalance;
 
   return (
-    <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 shadow-xl space-y-4">
+    <div className="bg-white/85 rounded-2xl p-5 border border-winter-border shadow-lg backdrop-blur-xl space-y-3 frost-shimmer">
       {/* Source Token */}
       <div>
-        <label className="text-sm text-slate-400 mb-1 block">From (Solana)</label>
+        <label className="text-sm text-winter-textSecondary mb-1 block">From (Solana)</label>
         <TokenSelector
           tokens={sourceTokens}
           selectedToken={selectedSourceToken}
@@ -150,22 +168,29 @@ function SwapForm() {
       </div>
 
       {/* Amount Input */}
-      {selectedSourceToken && (
-        <div>
-          <label className="text-sm text-slate-400 mb-1 block">Amount</label>
-          <AmountInput
-            value={state.amount}
-            onChange={(value) => dispatch({ type: 'SET_AMOUNT', payload: value })}
-            token={selectedSourceToken}
-            balance={balance}
-            balanceLoading={balanceLoading}
-          />
-        </div>
-      )}
+      <div className={!selectedSourceToken ? 'opacity-50 pointer-events-none' : ''}>
+        <label className="text-sm text-winter-textSecondary mb-1 block">
+          Amount {!selectedSourceToken && <span className="text-xs">(Select token first)</span>}
+        </label>
+        <AmountInput
+          value={state.amount}
+          onChange={(value) => dispatch({ type: 'SET_AMOUNT', payload: value })}
+          token={selectedSourceToken}
+          balance={balance}
+          balanceLoading={balanceLoading}
+          disabled={!selectedSourceToken}
+        />
+        {amountError && (
+          <p className="text-red-600 text-xs mt-1">{amountError}</p>
+        )}
+        {!amountError && insufficientBalance && (
+          <p className="text-red-600 text-xs mt-1">Insufficient balance</p>
+        )}
+      </div>
 
       {/* Destination Chain */}
       <div>
-        <label className="text-sm text-slate-400 mb-1 block">To Chain</label>
+        <label className="text-sm text-winter-textSecondary mb-1 block">To Chain</label>
         <ChainSelector
           chains={DESTINATION_CHAINS}
           selectedChain={selectedChain}
@@ -176,68 +201,70 @@ function SwapForm() {
       </div>
 
       {/* Destination Token */}
-      {state.destinationChain && (
-        <div>
-          <label className="text-sm text-slate-400 mb-1 block">Receive</label>
-          <TokenSelector
-            tokens={destTokens}
-            selectedToken={selectedDestToken}
-            onSelect={(token) =>
-              dispatch({ type: 'SET_DESTINATION_TOKEN', payload: token.address })
-            }
-            isLoading={loadingDest}
-            label="Select destination token"
-          />
-        </div>
-      )}
+      <div className={!state.destinationChain ? 'opacity-50 pointer-events-none' : ''}>
+        <label className="text-sm text-winter-textSecondary mb-1 block">
+          Receive {!state.destinationChain && <span className="text-xs">(Select chain first)</span>}
+        </label>
+        <TokenSelector
+          tokens={destTokens}
+          selectedToken={selectedDestToken}
+          onSelect={(token) =>
+            dispatch({ type: 'SET_DESTINATION_TOKEN', payload: token.address })
+          }
+          isLoading={loadingDest}
+          label="Select destination token"
+        />
+      </div>
 
       {/* Recipient Address */}
-      {selectedDestToken && (
-        <div>
-          <label className="text-sm text-slate-400 mb-1 block">
-            Recipient Address ({selectedChain?.name})
-          </label>
-          <input
-            type="text"
-            value={state.recipientAddress}
-            onChange={(e) =>
-              dispatch({ type: 'SET_RECIPIENT', payload: e.target.value.trim() })
-            }
-            placeholder="0x..."
-            className={`w-full bg-slate-700/50 rounded-lg p-3 text-white text-sm
-                       placeholder-slate-500 focus:outline-none focus:ring-2
-                       font-mono ${
-                         recipientAddressError
-                           ? 'border border-red-500 focus:ring-red-500'
-                           : 'focus:ring-solana-purple'
-                       }`}
-          />
-          {recipientAddressError && (
-            <p className="text-red-400 text-xs mt-1">{recipientAddressError}</p>
-          )}
-        </div>
-      )}
+      <div className={!selectedDestToken ? 'opacity-50 pointer-events-none' : ''}>
+        <label className="text-sm text-winter-textSecondary mb-1 block">
+          Recipient Address ({selectedChain?.name || 'Chain'}) {!selectedDestToken && <span className="text-xs">(Select token first)</span>}
+        </label>
+        <input
+          type="text"
+          value={state.recipientAddress}
+          onChange={(e) =>
+            dispatch({ type: 'SET_RECIPIENT', payload: e.target.value.trim() })
+          }
+          placeholder="0x..."
+          disabled={!selectedDestToken}
+          className={`w-full bg-white/50 rounded-lg p-3 text-winter-text text-sm
+                     placeholder-winter-textSecondary/60 focus:outline-none focus:ring-2
+                     backdrop-blur-lg transition-all hover:bg-white/70
+                     font-mono ${
+                       recipientAddressError
+                         ? 'border border-red-400 focus:ring-red-400'
+                         : 'border border-winter-border focus:ring-winter-cyan/50 focus:border-winter-cyan'
+                     }`}
+        />
+        {recipientAddressError && (
+          <p className="text-red-400 text-xs mt-1">{recipientAddressError}</p>
+        )}
+      </div>
 
-      {/* Quote Display */}
-      <QuoteDisplay
-        quote={quote}
-        sourceToken={selectedSourceToken}
-        destinationToken={selectedDestToken}
-        isLoading={quoteLoading}
-        error={quoteError}
-        secondsUntilExpiry={secondsUntilExpiry}
-        slippage={slippage}
-        onSlippageChange={setSlippage}
-        sourceTokenAddress={state.sourceToken}
-      />
+      {/* Quote Display - only show when there's a quote, loading, or error */}
+      {(quote || quoteLoading || quoteError) && (
+        <QuoteDisplay
+          quote={quote}
+          sourceToken={selectedSourceToken}
+          destinationToken={selectedDestToken}
+          isLoading={quoteLoading}
+          error={quoteError}
+          secondsUntilExpiry={secondsUntilExpiry}
+          slippage={slippage}
+          onSlippageChange={setSlippage}
+          sourceTokenAddress={state.sourceToken}
+        />
+      )}
 
       {/* Swap Button */}
       <button
         onClick={handleSwap}
         disabled={!canSwap}
-        className={`w-full bg-gradient-to-r from-solana-purple to-solana-green
-                   text-white font-medium py-3 rounded-lg transition-opacity
-                   ${canSwap ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
+        className={`w-full bg-gradient-to-r from-solana-purple to-winter-cyan
+                   text-white font-semibold py-3 rounded-lg transition-all shadow-md
+                   ${canSwap ? 'hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'}`}
       >
         {!connected
           ? 'Connect Wallet to Swap'
@@ -245,11 +272,17 @@ function SwapForm() {
             ? 'Processing...'
             : quoteLoading
               ? 'Fetching Quote...'
-              : quoteExpiringSoon
-                ? 'Quote expired - refreshing...'
-                : quote
-                  ? 'Swap'
-                  : 'Enter Amount'}
+              : amountError
+                ? amountError
+                : insufficientBalance
+                  ? 'Insufficient Balance'
+                  : quoteExpiringSoon
+                    ? 'Quote expired - refreshing...'
+                    : recipientAddressError
+                      ? 'Invalid Recipient Address'
+                      : quote
+                        ? 'Swap'
+                        : 'Enter Amount'}
       </button>
 
       {/* Swap Status Modal */}
@@ -268,6 +301,48 @@ function SwapForm() {
   );
 }
 
+// Snowflake component for decorations
+function Snowflake({ delay = 0, drift = '10px' }: { delay?: number; drift?: string }) {
+  return (
+    <div
+      className="absolute w-2 h-2 bg-[#4A90A4]/40 rounded-full blur-[0.5px] animate-snowfall"
+      style={{
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${delay}s`,
+        '--drift': drift,
+      } as React.CSSProperties & { '--drift': string }}
+    />
+  );
+}
+
+// Ice crystal decoration SVG
+function IceCrystal({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M50 10 L50 90 M10 50 L90 50 M25 25 L75 75 M75 25 L25 75"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="50" cy="50" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
+      <circle cx="50" cy="10" r="4" fill="currentColor" />
+      <circle cx="50" cy="90" r="4" fill="currentColor" />
+      <circle cx="10" cy="50" r="4" fill="currentColor" />
+      <circle cx="90" cy="50" r="4" fill="currentColor" />
+      <circle cx="25" cy="25" r="4" fill="currentColor" />
+      <circle cx="75" cy="75" r="4" fill="currentColor" />
+      <circle cx="75" cy="25" r="4" fill="currentColor" />
+      <circle cx="25" cy="75" r="4" fill="currentColor" />
+    </svg>
+  );
+}
+
 function App() {
   return (
     <SolanaHooksProvider
@@ -282,18 +357,54 @@ function App() {
             <TokenProvider>
               <WalletProvider>
                 <SwapProvider>
-                  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                    <header className="border-b border-slate-700/50 backdrop-blur-sm">
+                  <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-[#DFF0F5] to-[#D6EAF8] relative overflow-hidden">
+                    {/* Snowfall animation layer */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      {Array.from({ length: 20 }).map((_, i) => (
+                        <Snowflake
+                          key={i}
+                          delay={i * 0.5}
+                          drift={`${(Math.random() - 0.5) * 50}px`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Ice crystal decorations - reduced opacity for light background */}
+                    <IceCrystal className="absolute top-20 left-10 w-16 h-16 text-winter-border/15 opacity-30" />
+                    <IceCrystal className="absolute top-40 right-20 w-24 h-24 text-winter-border/10 opacity-25" />
+                    <IceCrystal className="absolute bottom-32 left-1/4 w-20 h-20 text-winter-glacial/8 opacity-20" />
+
+                    <header className="border-b border-winter-border backdrop-blur-xl bg-white/40 relative z-10">
                       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-                        <h1 className="text-2xl font-bold text-white">
-                          Cool<span className="text-solana-purple">Swap</span>
-                        </h1>
+                        <div className="flex items-center gap-3">
+                          {/* Ice cube logo */}
+                          <div className="w-8 h-8 bg-gradient-to-br from-winter-glacial/30 to-winter-cyan/20 border-2 border-winter-border rounded-lg backdrop-blur-sm shadow-md" />
+                          <h1 className="text-2xl font-bold text-winter-text">
+                            Cool<span className="bg-gradient-to-r from-winter-cyan to-solana-purple bg-clip-text text-transparent">Swap</span>
+                          </h1>
+                        </div>
                         <WalletButton />
                       </div>
                     </header>
-                    <main className="container mx-auto px-4 py-8">
-                      <div className="max-w-md mx-auto">
+                    <main className="container mx-auto px-4 py-6 relative z-10">
+                      <div className="max-w-lg mx-auto">
+                        {/* Page header with title and subtitle */}
+                        <div className="text-center mb-6">
+                          <h1 className="text-3xl font-bold text-winter-text mb-1 flex items-center justify-center gap-2">
+                            <span className="text-winter-cyan">❄️</span>
+                            Cross-Chain Swap
+                          </h1>
+                          <p className="text-winter-textSecondary">
+                            Swap from Solana to any EVM chain instantly
+                          </p>
+                        </div>
+
                         <SwapForm />
+
+                        {/* Footer */}
+                        <div className="text-center mt-4 text-sm text-winter-textSecondary">
+                          Powered by Relay • Built with ❄️
+                        </div>
                       </div>
                     </main>
                   </div>

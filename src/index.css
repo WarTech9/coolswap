@@ -10,18 +10,80 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-solana-purple hover:bg-solana-purple/90 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gradient-to-r from-solana-purple to-winter-cyan text-white font-medium py-2 px-4 rounded-lg transition-all;
+    @apply hover:shadow-glow-purple hover:scale-[1.02] active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-white/60 hover:bg-white/80 text-winter-text font-medium py-2 px-4 rounded-lg transition-all backdrop-blur-md;
+    @apply border border-winter-border hover:border-winter-border;
   }
 
   .input-field {
-    @apply bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-solana-purple/50 focus:border-solana-purple;
+    @apply bg-white/50 border border-winter-border rounded-lg px-4 py-3 text-winter-text placeholder-winter-textSecondary/60;
+    @apply focus:outline-none focus:ring-2 focus:ring-winter-cyan/50 focus:border-winter-cyan backdrop-blur-lg;
+    @apply transition-all hover:bg-white/70;
   }
 
   .card {
-    @apply bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 shadow-xl backdrop-blur-sm;
+    @apply bg-white/85 rounded-2xl p-6 border border-winter-border shadow-lg backdrop-blur-xl;
+    @apply relative;
+  }
+
+  .frost-glass {
+    @apply bg-white/70 backdrop-blur-xl border border-winter-border shadow-lg;
+  }
+
+  .ice-border {
+    @apply border-2 border-winter-border shadow-md;
+  }
+
+  .snow-shadow {
+    @apply shadow-[0_4px_20px_rgba(26,58,82,0.1),0_8px_40px_rgba(79,195,247,0.15)];
+  }
+
+  /* Frost shimmer effect */
+  .frost-shimmer {
+    position: relative;
+    /* overflow: hidden removed to fix dropdown z-index cutoff */
+  }
+
+  .frost-shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(79, 195, 247, 0.08) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: frost-shimmer 3s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Snowflake decoration */
+  @keyframes snowflake-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: no-preference) {
+    .animate-snowfall {
+      animation: snowfall 10s linear infinite;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-snowfall {
+      animation: none;
+    }
   }
 }

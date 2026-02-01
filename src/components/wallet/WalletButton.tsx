@@ -16,10 +16,11 @@ export function WalletButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg
-                   border border-slate-600 transition-colors flex items-center gap-2"
+        className="px-4 py-2 bg-white/60 hover:bg-white/80 text-winter-text rounded-lg
+                   border border-winter-border hover:border-winter-border transition-all
+                   backdrop-blur-lg flex items-center gap-2 shadow-sm"
       >
-        <span className="w-2 h-2 bg-green-400 rounded-full" />
+        <span className="w-2 h-2 bg-winter-cyan rounded-full shadow-sm animate-pulse" />
         {formatAddress(publicKey)}
       </button>
     );
@@ -28,9 +29,9 @@ export function WalletButton() {
   return (
     <button
       onClick={() => connect()}
-      className="px-4 py-2 bg-gradient-to-r from-solana-purple to-solana-green
-                 hover:from-solana-purple/80 hover:to-solana-green/80
-                 text-white font-medium rounded-lg transition-all"
+      className="px-4 py-2 bg-gradient-to-r from-solana-purple to-winter-cyan
+                 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]
+                 text-white font-medium rounded-lg transition-all shadow-md"
     >
       Connect Wallet
     </button>

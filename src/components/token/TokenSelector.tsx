@@ -36,8 +36,8 @@ export function TokenSelector({
 
   if (isLoading) {
     return (
-      <div className="bg-slate-700/50 rounded-lg p-3 animate-pulse">
-        <div className="h-6 bg-slate-600 rounded w-24" />
+      <div className="bg-white/60 rounded-lg p-3 animate-pulse border border-winter-border backdrop-blur-lg">
+        <div className="h-6 bg-white/40 rounded w-24" />
       </div>
     );
   }
@@ -46,8 +46,9 @@ export function TokenSelector({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-700/50 hover:bg-slate-700 rounded-lg p-3
-                   flex items-center gap-2 transition-colors text-left"
+        className="w-full bg-white/60 hover:bg-white/80 rounded-lg p-3
+                   flex items-center gap-2 transition-all text-left backdrop-blur-lg
+                   border border-winter-border hover:border-winter-border shadow-sm"
       >
         {selectedToken ? (
           <>
@@ -55,18 +56,18 @@ export function TokenSelector({
               <img
                 src={selectedToken.logoUri}
                 alt={selectedToken.symbol}
-                className="w-6 h-6 rounded-full"
+                className="w-6 h-6 rounded-full border border-winter-border"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
             )}
-            <span className="font-medium text-white">{selectedToken.symbol}</span>
+            <span className="font-medium text-winter-text">{selectedToken.symbol}</span>
           </>
         ) : (
-          <span className="text-slate-400">{label}</span>
+          <span className="text-winter-textSecondary">{label}</span>
         )}
-        <ChevronDownIcon className="ml-auto w-4 h-4 text-slate-400" />
+        <ChevronDownIcon className="ml-auto w-4 h-4 text-winter-textSecondary" />
       </button>
 
       {isOpen && (
@@ -81,18 +82,18 @@ export function TokenSelector({
           />
 
           {/* Dropdown */}
-          <div className="absolute z-50 mt-2 w-full bg-slate-800 border border-slate-700
-                          rounded-lg shadow-xl max-h-[min(300px,60vh)] overflow-hidden">
+          <div className="absolute z-50 mt-2 w-full bg-white border-2 border-winter-border
+                          rounded-lg shadow-lg max-h-[min(300px,60vh)] overflow-hidden">
             {/* Search input */}
-            <div className="p-2 border-b border-slate-700">
+            <div className="p-2 border-b border-winter-border">
               <input
                 type="text"
                 placeholder="Search tokens..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-700 rounded px-3 py-2 text-sm text-white
-                           placeholder-slate-400 focus:outline-none focus:ring-2
-                           focus:ring-solana-purple"
+                className="w-full bg-white/80 rounded px-3 py-2 text-sm text-winter-text
+                           placeholder-winter-textSecondary/60 focus:outline-none focus:ring-2
+                           focus:ring-winter-cyan/50 border border-winter-border"
                 autoFocus
               />
             </div>
@@ -108,26 +109,26 @@ export function TokenSelector({
                     setSearch('');
                   }}
                   className="w-full px-3 py-2 flex items-center gap-2
-                             hover:bg-slate-700/50 transition-colors text-left"
+                             hover:bg-[#F5FAFB] transition-colors text-left"
                 >
                   {token.logoUri && (
                     <img
                       src={token.logoUri}
                       alt={token.symbol}
-                      className="w-6 h-6 rounded-full"
+                      className="w-6 h-6 rounded-full border border-winter-border"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
                   )}
                   <div>
-                    <div className="font-medium text-white">{token.symbol}</div>
-                    <div className="text-xs text-slate-400">{token.name}</div>
+                    <div className="font-medium text-winter-text">{token.symbol}</div>
+                    <div className="text-xs text-winter-textSecondary">{token.name}</div>
                   </div>
                 </button>
               ))}
               {filteredTokens.length === 0 && (
-                <div className="px-3 py-4 text-center text-slate-400">
+                <div className="px-3 py-4 text-center text-winter-textSecondary">
                   No tokens found
                 </div>
               )}

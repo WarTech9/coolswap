@@ -54,9 +54,11 @@ export function AmountInput({
           onChange={handleChange}
           placeholder="0.00"
           disabled={disabled || !token}
-          className="w-full bg-slate-700/50 rounded-lg p-3 pr-24 text-white text-lg
-                     placeholder-slate-500 focus:outline-none focus:ring-2
-                     focus:ring-solana-purple disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-white/50 rounded-lg p-3 pr-24 text-winter-text text-lg
+                     placeholder-winter-textSecondary/60 focus:outline-none focus:ring-2
+                     focus:ring-winter-cyan/50 focus:border-winter-cyan backdrop-blur-lg
+                     border border-winter-border transition-all hover:bg-white/70
+                     disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
           {balance !== null && (
@@ -64,15 +66,15 @@ export function AmountInput({
               type="button"
               onClick={handleMax}
               disabled={disabled || !token}
-              className="px-2 py-1 text-xs font-medium text-solana-purple
-                         hover:text-solana-green transition-colors
+              className="px-2 py-1 text-xs font-medium text-winter-cyan
+                         hover:text-solana-purple transition-colors
                          disabled:opacity-50 disabled:cursor-not-allowed"
             >
               MAX
             </button>
           )}
           {token && (
-            <span className="text-sm font-medium text-slate-400">
+            <span className="text-sm font-medium text-winter-textSecondary">
               {token.symbol}
             </span>
           )}
@@ -81,12 +83,12 @@ export function AmountInput({
 
       {/* Balance display */}
       {token && (
-        <div className="text-sm text-slate-400 px-1">
+        <div className="text-sm text-winter-textSecondary px-1">
           Balance:{' '}
           {balanceLoading ? (
             <span className="animate-pulse">...</span>
           ) : balance !== null ? (
-            <span className="text-slate-300">{balance} {token.symbol}</span>
+            <span className="text-winter-text font-medium">{balance} {token.symbol}</span>
           ) : (
             <span>-</span>
           )}
