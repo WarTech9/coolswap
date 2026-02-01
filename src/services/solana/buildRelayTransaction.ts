@@ -57,6 +57,18 @@ export function convertRelayInstruction(inst: RelayInstruction): Instruction {
 
   // Decode hex data to bytes
   const dataHex = inst.data.startsWith('0x') ? inst.data.slice(2) : inst.data;
+
+  // Validate hex string (must be even length and only hex chars)
+  if (dataHex.length > 0) {
+    if (dataHex.length % 2 !== 0) {
+      throw new Error(`Invalid instruction data: hex string has odd length (${dataHex.length})`);
+    }
+    if (!/^[0-9a-fA-F]*$/.test(dataHex)) {
+      throw new Error(`Invalid instruction data: contains non-hex characters`);
+    }
+  }
+
+  // Parse hex to bytes (empty string → empty array)
   const data = new Uint8Array(
     dataHex.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || []
   );

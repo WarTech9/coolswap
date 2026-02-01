@@ -315,10 +315,21 @@ export function useRelaySwapExecution(
           const simulation = await solanaClient.simulateTransaction(bytesForSim);
           console.log('Simulation result:', simulation);
           console.log('Simulation logs:', simulation.logs);
-          console.log('Simulation error:', simulation.err);
+
+          // Check for simulation errors
+          if (simulation.err) {
+            console.error('⚠️ SIMULATION ERROR:', simulation.err);
+            console.error('Logs:', simulation.logs);
+            // Note: We log the error but don't block execution
+            // This is for debugging - production may want to block if simulation fails
+          } else {
+            console.log('✓ Simulation succeeded');
+          }
           console.log('==============================');
         } catch (simErr) {
           console.error('Simulation failed:', simErr);
+          // Note: Simulation failure doesn't block execution
+          // User may still want to try the transaction
         }
 
         // 2h. Encode for transmission
@@ -410,7 +421,7 @@ export function useRelaySwapExecution(
 
       setError(userError);
       setStatus('error');
-      onResume?.();
+      onResume?.(); // Resume quote refresh on error so user can retry with fresh quote
     } finally {
       isExecutingRef.current = false;
     }

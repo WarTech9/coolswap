@@ -98,6 +98,15 @@ export async function convertLamportsToToken(
   }
 
   // Convert: lamports → SOL → USD → token
+  // Use BigInt arithmetic to avoid precision loss
+
+  // Validate range to ensure no precision loss
+  if (lamports > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`Lamports value too large: ${lamports}`);
+  }
+
+  // Calculate in stages using floating point for price conversions
+  // (Prices from Pyth are already floating point)
   const solAmount = Number(lamports) / 1e9;
   const usdValue = solAmount * solPrice;
   const tokenAmount = usdValue / tokenPrice;

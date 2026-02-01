@@ -14,6 +14,23 @@
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 
 export default async function handler(req, res) {
+  // CORS handling
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:3000', 'http://127.0.0.1:3000']; // Default for local dev
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+
+  // Handle OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -107,9 +124,9 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Unexpected error in sign-transaction endpoint:', err);
+    // Log full error for debugging, but only return generic message to client
     return res.status(500).json({
-      error: 'Internal server error',
-      message: err.message
+      error: 'Internal server error'
     });
   }
 }
