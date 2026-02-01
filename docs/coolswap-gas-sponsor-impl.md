@@ -66,6 +66,120 @@ User signs tx → Frontend submits to RPC → User pays SOL fees
 
 ---
 
+## Sponsor Payment Economics
+
+**Hard Requirement:** The sponsor must NEVER lose money. Users bear all conversion risk.
+
+### How the Sponsor Gets Paid
+
+deBridge's `prependOperatingExpenses` only covers deBridge fees, NOT Solana gas. We use Kora's `getPaymentInstruction()` to add an explicit token payment from user to sponsor.
+
+### Payment Flow
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ 1. Get deBridge transaction                                                │
+│    └─ Returns: swap instructions (user's token → deBridge → EVM)          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 2. Call Kora getPaymentInstruction(tx, fee_token, user_wallet)            │
+│    └─ Kora does:                                                           │
+│       a) Estimate gas cost in lamports                                     │
+│       b) Convert SOL → token using price oracle (Jupiter)                  │
+│       c) Apply margin: token_fee = gas_cost_in_token * (1 + margin)       │
+│       d) Return payment instruction: user_ATA → sponsor_ATA               │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 3. Build final transaction                                                 │
+│    └─ Original deBridge tx + payment instruction appended                  │
+│    └─ Set fee payer = Kora's signer address                               │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 4. User signs transaction                                                  │
+│    └─ Authorizes both: swap + payment to sponsor                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 5. Send to Kora signAndSendTransaction()                                   │
+│    └─ Kora adds fee payer signature                                        │
+│    └─ Kora submits to Solana                                              │
+├────────────────────────────────────────────────────────────────────────────┤
+│ 6. Transaction executes atomically                                         │
+│    └─ User pays sponsor in tokens (gas cost + margin)                     │
+│    └─ Sponsor pays Solana gas in SOL                                       │
+│    └─ Swap executes via deBridge                                          │
+│    └─ SPONSOR PROFIT = margin (configurable, e.g., 10%)                   │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Kora Pricing Configuration
+
+```toml
+# In kora.toml
+[validation]
+price_source = "Jupiter"  # Use real-time SOL/token prices (NOT "Mock" for production)
+
+[validation.price]
+type = "margin"           # Options: free / margin / fixed
+margin = 0.1              # 10% margin = sponsor gets 110% of gas cost
+```
+
+**Pricing modes:**
+| Mode | How it works | Sponsor risk |
+|------|--------------|--------------|
+| `free` | Sponsor pays gas, no reimbursement | High (loses money) |
+| `margin` | User pays `gas_cost * (1 + margin)` in tokens | **None (always profits)** |
+| `fixed` | User pays fixed amount per tx | Medium (gas spikes) |
+
+### Guarantees
+
+| Guarantee | How it's enforced |
+|-----------|-------------------|
+| **Price accuracy** | `price_source = "Jupiter"` fetches real-time SOL/token price |
+| **Profit margin** | `margin = 0.1` means sponsor receives 110% of gas cost in tokens |
+| **Atomicity** | Payment instruction is in same tx as swap - both execute or neither |
+| **No partial execution** | If user can't pay, entire tx fails (sponsor pays nothing) |
+
+### Example Calculation
+
+If gas costs **5000 lamports** (~$0.001 at $200/SOL) and user pays in USDC:
+
+```
+SOL gas cost:     5000 lamports = 0.000005 SOL
+SOL price:        $200
+Gas cost in USD:  $0.001
+Margin (10%):     $0.0001
+─────────────────────────────
+User pays:        $0.0011 USDC (0.001100 USDC)
+Sponsor receives: $0.0011 USDC
+Sponsor pays:     $0.001 SOL
+Sponsor profit:   $0.0001 (10% margin)
+```
+
+### Implementation in CoolSwap
+
+```typescript
+// In useSwapExecution.ts
+
+// 1. Get Kora's fee payer address and payment instruction
+const { payment_instruction, payment_amount } = await koraClient.getPaymentInstruction({
+  transaction: deBridgeTxBase64,
+  fee_token: sourceToken.address,  // e.g., USDC mint
+  source_wallet: userWallet.address,
+});
+
+// 2. Append payment instruction to deBridge transaction
+const finalTx = appendInstruction(deBridgeTx, payment_instruction);
+
+// 3. Set Kora as fee payer
+const txWithFeePayer = setFeePayer(finalTx, koraSignerAddress);
+
+// 4. User signs (authorizes swap + payment)
+const userSignedTx = await wallet.signTransaction(txWithFeePayer);
+
+// 5. Kora adds fee payer signature and submits
+const signature = await koraClient.signAndSendTransaction({
+  transaction: encode(userSignedTx),
+});
+```
+
+---
+
 ## Decision: Kora vs Custom Backend
 
 ### Detailed Comparison (Demo App Focus)
@@ -475,6 +589,65 @@ This is essentially a minimal Kora without all the configuration options.
 2. **Sponsor wallet funding** - How much SOL to start? Auto-replenishment?
 3. **Rate limiting** - Per-wallet limits to prevent abuse?
 4. **Fallback** - What if Kora is unavailable? Block swaps or require user SOL?
+
+---
+
+## Future Enhancement: Sponsor Receives SOL Directly
+
+**Status:** Not in MVP scope
+
+Currently, the sponsor receives payment in the user's input token (e.g., USDC). A future enhancement could swap the payment to SOL so the sponsor receives SOL directly, simplifying accounting.
+
+### Approach
+
+Add a Jupiter swap instruction to convert user's token payment → SOL:
+
+```typescript
+// Instead of simple token transfer to sponsor...
+// Add Jupiter swap: USDC → SOL → sponsor's SOL account
+
+// 1. Get Jupiter quote for token → SOL
+const jupiterQuote = await jupiter.getQuote({
+  inputMint: sourceToken.address,  // e.g., USDC
+  outputMint: NATIVE_SOL,
+  amount: paymentAmountInToken,
+  slippageBps: 50,  // 0.5%
+});
+
+// 2. Get swap instruction with sponsor as recipient
+const swapIx = await jupiter.getSwapInstruction(jupiterQuote, {
+  destinationTokenAccount: sponsorSolAccount,
+});
+
+// 3. Replace payment instruction with Jupiter swap
+finalTx = appendInstruction(deBridgeTx, swapIx);
+```
+
+### Trade-offs
+
+| Factor | Token Payment (Current) | Jupiter Swap to SOL |
+|--------|------------------------|---------------------|
+| Complexity | Low | Medium-High |
+| Gas cost | ~5,000 lamports | ~15,000+ lamports |
+| Slippage risk | None | Yes |
+| Sponsor accounting | Accumulates tokens | Gets SOL directly |
+| Compute budget | Plenty of headroom | May be tight with deBridge |
+
+### Why Not Now
+
+1. **Complexity** - Jupiter integration adds significant code
+2. **Gas overhead** - Users pay more for the additional swap
+3. **Compute limits** - deBridge + Jupiter may exceed budget
+4. **Small amounts** - Tiny payments may have poor swap rates
+
+### Alternative for MVP
+
+Sponsor accumulates tokens and runs a periodic batch conversion script:
+
+```bash
+# Cron job: Convert accumulated USDC to SOL weekly
+jupiter swap --input USDC --output SOL --amount all --wallet sponsor.json
+```
 
 ---
 

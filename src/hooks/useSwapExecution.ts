@@ -6,7 +6,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { useWalletConnection } from '@solana/react-hooks';
 import { getTransactionDecoder, getTransactionEncoder } from '@solana/transactions';
+import { address } from '@solana/addresses';
 import { useSolanaClient } from '@/context/SolanaContext';
+import { useGasSponsorService } from '@/context/GasSponsorContext';
+import { appendInstruction, setFeePayer } from '@/services/solana';
 import type { Quote, PreparedTransaction } from '@/services/bridge/types';
 
 export type ExecutionStatus = 'idle' | 'signing' | 'confirming' | 'completed' | 'error';
@@ -37,11 +40,13 @@ export function hexToBytes(hex: string): Uint8Array {
  * Hook for executing swap transactions
  *
  * @param quote - The current quote containing transaction data
+ * @param sourceTokenAddress - Source token mint address for Kora payment
  * @param onPause - Callback to pause quote auto-refresh
  * @param onResume - Callback to resume quote auto-refresh
  */
 export function useSwapExecution(
   quote: Quote | null,
+  sourceTokenAddress: string | null,
   onPause?: () => void,
   onResume?: () => void
 ): UseSwapExecutionResult {
@@ -52,6 +57,7 @@ export function useSwapExecution(
   const isExecutingRef = useRef(false);
   const { wallet } = useWalletConnection();
   const solanaClient = useSolanaClient();
+  const gasSponsor = useGasSponsorService();
 
   const reset = useCallback(() => {
     setStatus('idle');
@@ -122,36 +128,67 @@ export function useSwapExecution(
 
       // Step 3: Decode bytes to Transaction object using @solana/transactions
       const decoder = getTransactionDecoder();
-      const transaction = decoder.decode(txBytes);
+      let transaction = decoder.decode(txBytes);
 
-      // Step 4: Sign the transaction with the wallet
-      // The wallet.signTransaction expects a Transaction and returns a signed Transaction
-      // Sign the transaction - wallet will prompt user
+      // Step 4: Integrate Kora gas sponsorship
+      // Get payment instruction (user pays sponsor in tokens for gas)
+      if (!sourceTokenAddress) {
+        throw new Error('Source token address is required for gas sponsorship');
+      }
+
+      // Encode original transaction as base64 for Kora
+      const encoder = getTransactionEncoder();
+      const originalTxBytes = encoder.encode(
+        transaction as unknown as Parameters<typeof encoder.encode>[0]
+      );
+      // Convert ReadonlyUint8Array to regular Uint8Array for Buffer
+      const originalTxArray = new Uint8Array(originalTxBytes.buffer, originalTxBytes.byteOffset, originalTxBytes.byteLength);
+      const originalTxBase64 = Buffer.from(originalTxArray).toString('base64');
+
+      // Get wallet address
+      if (!wallet.account?.address) {
+        throw new Error('Wallet address not available');
+      }
+
+      // Get payment instruction from Kora
+      const paymentInfo = await gasSponsor.getPaymentInstruction(
+        originalTxBase64,
+        sourceTokenAddress,
+        wallet.account.address
+      );
+
+      // Append payment instruction to transaction
+      transaction = appendInstruction(
+        transaction as any,
+        paymentInfo.paymentInstruction
+      );
+
+      // Set Kora as fee payer
+      transaction = setFeePayer(
+        transaction as any,
+        address(paymentInfo.signerAddress)
+      );
+
+      // Step 5: User signs the transaction (authorizes swap + payment to sponsor)
       // Use type assertion because deBridge transactions are pre-built and
       // don't carry the nominal type brands from @solana/transactions
       const signedTransaction = await wallet.signTransaction(
         transaction as Parameters<NonNullable<typeof wallet.signTransaction>>[0]
       );
 
-      // Step 5: Encode and send the signed transaction
+      // Step 6: Encode signed transaction for Kora submission
       setStatus('confirming');
 
-      // Encode the signed transaction to bytes for sending
-      const encoder = getTransactionEncoder();
-      // Use type assertion for the branded Transaction type
+      // Encode the signed transaction to base64
       const signedBytes = encoder.encode(
         signedTransaction as unknown as Parameters<typeof encoder.encode>[0]
       );
+      // Convert ReadonlyUint8Array to regular Uint8Array for Buffer
+      const signedBytesArray = new Uint8Array(signedBytes.buffer, signedBytes.byteOffset, signedBytes.byteLength);
+      const signedTxBase64 = Buffer.from(signedBytesArray).toString('base64');
 
-      // Convert to regular Uint8Array for our RPC service
-      // Copy bytes one by one since signedBytes is ReadonlyUint8Array
-      const signedTxBytes = new Uint8Array(signedBytes.length);
-      for (let i = 0; i < signedBytes.length; i++) {
-        signedTxBytes[i] = signedBytes[i] ?? 0;
-      }
-
-      // Send via our RPC service which handles confirmation
-      const txSig = await solanaClient.sendTransaction(signedTxBytes);
+      // Submit via Kora (Kora adds fee payer signature and submits)
+      const txSig = await gasSponsor.submitTransaction(signedTxBase64);
       setTxSignature(txSig);
 
       setStatus('completed');
@@ -186,6 +223,12 @@ export function useSwapExecution(
       } else if (lower.includes('simulation failed')) {
         // Transaction simulation failed
         userError = 'Transaction simulation failed. The swap may not be valid.';
+      } else if (lower.includes('kora') || lower.includes('gas sponsor') || lower.includes('fee payer')) {
+        // Kora-specific errors
+        userError = 'Gas sponsorship service error. Please try again.';
+      } else if (lower.includes('payment instruction')) {
+        // Payment instruction error
+        userError = 'Unable to create gas payment. Please check your token balance.';
       } else {
         // Fallback to original message or generic error
         userError = message || 'Transaction failed';
@@ -197,7 +240,7 @@ export function useSwapExecution(
     } finally {
       isExecutingRef.current = false;
     }
-  }, [quote, wallet, solanaClient, onPause, onResume]);
+  }, [quote, sourceTokenAddress, wallet, solanaClient, gasSponsor, onPause, onResume]);
 
   return {
     execute,

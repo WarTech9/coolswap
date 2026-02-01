@@ -3,3 +3,5 @@
  */
 
 export { SolanaClientService } from './SolanaClientService';
+export { appendInstruction, setFeePayer } from './transactionUtils';
+export { buildTransactionFromRelayInstructions, convertRelayInstruction } from './buildRelayTransaction';

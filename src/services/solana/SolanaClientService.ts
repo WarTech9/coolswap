@@ -13,21 +13,15 @@ import { address } from '@solana/addresses';
 import type { Signature } from '@solana/keys';
 import type { Base64EncodedWireTransaction } from '@solana/transactions';
 
-interface HeliusPriorityFeeResponse {
-  priorityFeeEstimate?: number;
-}
-
 export class SolanaClientService {
   private client: SolanaClient;
-  private heliusApiKey?: string;
 
-  constructor(endpoint: string, websocketEndpoint: string, heliusApiKey?: string) {
+  constructor(endpoint: string, websocketEndpoint: string) {
     this.client = createClient({
       endpoint,
       websocket: websocketEndpoint,
       walletConnectors: autoDiscover(),
     });
-    this.heliusApiKey = heliusApiKey;
   }
 
   /**
@@ -35,17 +29,6 @@ export class SolanaClientService {
    */
   getClient(): SolanaClient {
     return this.client;
-  }
-
-  /**
-   * Get priority fee in microlamports per compute unit
-   * Uses Helius API if available, otherwise returns a default
-   */
-  async getPriorityFee(): Promise<number> {
-    if (this.heliusApiKey) {
-      return this.getHeliusPriorityFee();
-    }
-    return this.getDefaultPriorityFee();
   }
 
   /**
@@ -59,12 +42,53 @@ export class SolanaClientService {
   }
 
   /**
+   * Get recent blockhash with full lifetime info for transaction building
+   */
+  async getLatestBlockhash(): Promise<{
+    blockhash: string;
+    lastValidBlockHeight: bigint;
+  }> {
+    const result = await this.client.runtime.rpc
+      .getLatestBlockhash({ commitment: 'confirmed' })
+      .send();
+    return {
+      blockhash: result.value.blockhash,
+      lastValidBlockHeight: result.value.lastValidBlockHeight,
+    };
+  }
+
+  /**
    * Fetch account info for a given address
    * Returns AccountCacheEntry with owner as Address or null if account doesn't exist
    */
   async getAccountInfo(addressStr: string): Promise<AccountCacheEntry> {
     const addr = address(addressStr);
     return this.client.actions.fetchAccount(addr);
+  }
+
+  /**
+   * Simulate a transaction to check for errors
+   * Returns simulation result with logs
+   */
+  async simulateTransaction(serializedTx: Uint8Array): Promise<{
+    err: unknown | null;
+    logs: string[] | null;
+  }> {
+    // Encode transaction as base64
+    const encodedTx = Buffer.from(serializedTx).toString('base64') as Base64EncodedWireTransaction;
+
+    // Simulate the transaction
+    const result = await this.client.runtime.rpc
+      .simulateTransaction(encodedTx, {
+        encoding: 'base64',
+        commitment: 'confirmed',
+      })
+      .send();
+
+    return {
+      err: result.value.err,
+      logs: result.value.logs,
+    };
   }
 
   /**
@@ -117,54 +141,5 @@ export class SolanaClientService {
     }
 
     throw new Error('Transaction confirmation timeout');
-  }
-
-  /**
-   * Get priority fee from Helius API
-   */
-  private async getHeliusPriorityFee(): Promise<number> {
-    try {
-      const url = `https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getPriorityFeeEstimate',
-          params: [
-            {
-              accountKeys: [],
-              options: {
-                includeAllPriorityFeeLevels: true,
-              },
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn('Helius priority fee request failed, using default');
-        return this.getDefaultPriorityFee();
-      }
-
-      const data = (await response.json()) as {
-        result?: HeliusPriorityFeeResponse;
-      };
-
-      const priorityFee = data.result?.priorityFeeEstimate ?? 0;
-      return Math.ceil(priorityFee);
-    } catch (error) {
-      console.warn('Error fetching Helius priority fee:', error);
-      return this.getDefaultPriorityFee();
-    }
-  }
-
-  /**
-   * Get default priority fee
-   */
-  private getDefaultPriorityFee(): number {
-    return 1000; // 1000 microlamports per CU
   }
 }

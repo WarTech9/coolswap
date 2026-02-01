@@ -21,6 +21,11 @@ coverage/
 .env.*.local
 *.pem
 
+# Server wallet (NEVER commit secret keys!)
+server-wallet.json
+*.keypair
+.vercel
+
 # OS
 .DS_Store
 Thumbs.db

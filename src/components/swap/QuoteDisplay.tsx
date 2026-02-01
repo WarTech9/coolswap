@@ -6,6 +6,7 @@
 import type { Quote, Token } from '@/services/bridge/types';
 import type { CreateOrderError } from '@/services/bridge/IBridgeProvider';
 import { formatTokenAmount, formatSolAmount } from '@/utils/formatting';
+import { useGasFee } from '@/hooks';
 
 interface QuoteDisplayProps {
   quote: Quote | null;
@@ -16,6 +17,7 @@ interface QuoteDisplayProps {
   secondsUntilExpiry: number | null;
   slippage: number;
   onSlippageChange: (value: number) => void;
+  sourceTokenAddress?: string | null;
 }
 
 const SLIPPAGE_OPTIONS = [0.001, 0.005, 0.01]; // 0.1%, 0.5%, 1%
@@ -52,7 +54,14 @@ export function QuoteDisplay({
   secondsUntilExpiry,
   slippage,
   onSlippageChange,
+  sourceTokenAddress,
 }: QuoteDisplayProps) {
+  // Get gas fee estimate (uses Pyth for Relay, Kora for deBridge)
+  const gasFee = useGasFee(
+    quote,
+    sourceTokenAddress ?? null,
+    sourceToken?.decimals ?? 6
+  );
   // Show nothing if no quote data and not loading
   if (!quote && !isLoading && !error) {
     return null;
@@ -93,40 +102,127 @@ export function QuoteDisplay({
 
           {/* Fee breakdown */}
           <div className="border-t border-slate-600/50 pt-3 space-y-2">
+            {/* Relay fee - shown for Relay provider (already deducted from output) */}
+            {quote.fees.relayerFeeFormatted && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400">Relay fee</span>
+                  <span
+                    className="text-slate-500 cursor-help"
+                    title="Bridge fee (already deducted from amount you receive)"
+                  >
+                    <InfoIcon />
+                  </span>
+                </div>
+                <span className="text-slate-500">
+                  -{quote.fees.relayerFeeFormatted} {sourceToken?.symbol}
+                </span>
+              </div>
+            )}
+
+            {/* Bridge protocol fee - only show if user pays SOL (deBridge) */}
+            {quote.fees.networkFee !== '0' && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400">Bridge protocol fee</span>
+                  <span
+                    className="text-slate-500 cursor-help"
+                    title="Fee paid to bridge network validators"
+                  >
+                    <InfoIcon />
+                  </span>
+                </div>
+                <span className="text-slate-300">
+                  {formatSolAmount(quote.fees.networkFee)} SOL
+                </span>
+              </div>
+            )}
+
+            {/* Gas sponsorship fee */}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Operating expenses</span>
+              <div className="flex items-center gap-1">
+                <span className="text-slate-400">Gas sponsorship</span>
+                {gasFee.isLoading && <LoadingSpinner size="sm" />}
+                <span
+                  className="text-slate-500 cursor-help"
+                  title="Solana transaction gas paid in tokens via Kora"
+                >
+                  <InfoIcon />
+                </span>
+              </div>
               <span className="text-slate-300">
-                +{sourceToken
-                  ? formatTokenAmount(quote.fees.operatingExpenses, sourceToken.decimals)
-                  : quote.fees.operatingExpenses}{' '}
-                {sourceToken?.symbol}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Network fee</span>
-              <span className="text-slate-300">
-                {formatSolAmount(quote.fees.networkFee)} SOL
+                {gasFee.isLoading ? (
+                  'Estimating...'
+                ) : gasFee.tokenAmount > BigInt(0) && sourceToken ? (
+                  <>
+                    +{formatTokenAmount(gasFee.tokenAmount.toString(), sourceToken.decimals)}{' '}
+                    {sourceToken.symbol}
+                    <span className="text-slate-500 text-xs ml-1">
+                      (~{formatSolAmount(gasFee.lamports.toString())} SOL)
+                    </span>
+                  </>
+                ) : quote.fees.gasSolFormatted ? (
+                  // Fallback: Use Relay's gas data when Kora estimate fails
+                  <span className="text-slate-400">
+                    ~{quote.fees.gasSolFormatted} SOL
+                    {quote.fees.gasUsd && (
+                      <span className="text-slate-500 text-xs ml-1">
+                        (${quote.fees.gasUsd})
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">Sponsored</span>
+                )}
               </span>
             </div>
             {/* Total from wallet */}
             <div className="flex items-center justify-between text-sm border-t border-slate-600/30 pt-2 mt-2">
               <span className="text-slate-300 font-medium">Total from wallet</span>
               <span className="text-white font-medium">
-                {sourceToken
-                  ? formatTokenAmount(quote.sourceAmount, sourceToken.decimals)
-                  : quote.sourceAmount}{' '}
-                {sourceToken?.symbol}
-                <span className="text-slate-400 text-xs ml-1">
-                  + {formatSolAmount(quote.fees.networkFee)} SOL
-                </span>
+                {sourceToken && gasFee.tokenAmount > BigInt(0) && !gasFee.error ? (
+                  <>
+                    {formatTokenAmount(
+                      (BigInt(quote.sourceAmount) + gasFee.tokenAmount).toString(),
+                      sourceToken.decimals
+                    )}{' '}
+                    {sourceToken.symbol}
+                    {quote.fees.networkFee !== '0' && (
+                      <span className="text-slate-400 text-xs ml-1">
+                        + {formatSolAmount(quote.fees.networkFee)} SOL
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {sourceToken
+                      ? formatTokenAmount(quote.sourceAmount, sourceToken.decimals)
+                      : quote.sourceAmount}{' '}
+                    {sourceToken?.symbol}
+                    {quote.fees.networkFee !== '0' && (
+                      <span className="text-slate-400 text-xs ml-1">
+                        + {formatSolAmount(quote.fees.networkFee)} SOL
+                      </span>
+                    )}
+                  </>
+                )}
               </span>
             </div>
-            {quote.fees.totalFeeUsd !== undefined && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Total fees</span>
-                <span className="text-slate-300">
-                  ${quote.fees.totalFeeUsd.toFixed(2)} USD
-                </span>
+            {/* Gas sponsorship note */}
+            {!gasFee.error && gasFee.tokenAmount > BigInt(0) && (
+              <div className="flex items-start gap-1 text-xs text-slate-400 bg-slate-800/30 rounded px-2 py-1.5">
+                <svg
+                  className="w-3 h-3 mt-0.5 flex-shrink-0 text-solana-purple"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span>Transaction gas is paid in {sourceToken?.symbol} via Kora sponsorship</span>
               </div>
             )}
           </div>
@@ -201,6 +297,24 @@ function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' }) {
         className="opacity-75"
         fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg
+      className="w-3 h-3"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     </svg>
   );

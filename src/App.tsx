@@ -5,6 +5,7 @@ import { BridgeProvider } from './context/BridgeContext';
 import { TokenProvider } from './context/TokenContext';
 import { WalletProvider, useWalletContext } from './context/WalletContext';
 import { SwapProvider, useSwapContext } from './context/SwapContext';
+import { GasSponsorProvider } from './context/GasSponsorContext';
 import { WalletButton } from './components/wallet/WalletButton';
 import { TokenSelector } from './components/token';
 import { ChainSelector, AmountInput, QuoteDisplay, SwapStatusModal } from './components/swap';
@@ -13,7 +14,7 @@ import {
   useDestinationTokens,
   useTokenBalance,
   useQuote,
-  useSwapExecution,
+  useUnifiedSwapExecution,
   useOrderStatus,
 } from './hooks';
 import { DESTINATION_CHAINS } from './config/chains';
@@ -83,7 +84,10 @@ function SwapForm() {
     resume: resumeQuote,
   } = useQuote(quoteParams);
 
-  // Swap execution hook
+  // Get source token decimals for gas conversion (default to 6 for USDC)
+  const sourceTokenDecimals = selectedSourceToken?.decimals ?? 6;
+
+  // Swap execution hook - automatically uses deBridge or Relay based on provider
   const {
     execute: executeSwap,
     isExecuting,
@@ -91,7 +95,7 @@ function SwapForm() {
     error: executionError,
     status: executionStatus,
     reset: resetExecution,
-  } = useSwapExecution(quote, pauseQuote, resumeQuote);
+  } = useUnifiedSwapExecution(quote, state.sourceToken, sourceTokenDecimals, pauseQuote, resumeQuote);
 
   // Order status tracking - start polling after tx is confirmed
   const orderId = executionStatus === 'completed' ? quote?.id ?? null : null;
@@ -224,6 +228,7 @@ function SwapForm() {
         secondsUntilExpiry={secondsUntilExpiry}
         slippage={slippage}
         onSlippageChange={setSlippage}
+        sourceTokenAddress={state.sourceToken}
       />
 
       {/* Swap Button */}
@@ -272,29 +277,31 @@ function App() {
       }}
     >
       <SolanaClientProvider>
-        <BridgeProvider>
-          <TokenProvider>
-            <WalletProvider>
-              <SwapProvider>
-                <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                  <header className="border-b border-slate-700/50 backdrop-blur-sm">
-                    <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-                      <h1 className="text-2xl font-bold text-white">
-                        Cool<span className="text-solana-purple">Swap</span>
-                      </h1>
-                      <WalletButton />
-                    </div>
-                  </header>
-                  <main className="container mx-auto px-4 py-8">
-                    <div className="max-w-md mx-auto">
-                      <SwapForm />
-                    </div>
-                  </main>
-                </div>
-              </SwapProvider>
-            </WalletProvider>
-          </TokenProvider>
-        </BridgeProvider>
+        <GasSponsorProvider>
+          <BridgeProvider>
+            <TokenProvider>
+              <WalletProvider>
+                <SwapProvider>
+                  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                    <header className="border-b border-slate-700/50 backdrop-blur-sm">
+                      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+                        <h1 className="text-2xl font-bold text-white">
+                          Cool<span className="text-solana-purple">Swap</span>
+                        </h1>
+                        <WalletButton />
+                      </div>
+                    </header>
+                    <main className="container mx-auto px-4 py-8">
+                      <div className="max-w-md mx-auto">
+                        <SwapForm />
+                      </div>
+                    </main>
+                  </div>
+                </SwapProvider>
+              </WalletProvider>
+            </TokenProvider>
+          </BridgeProvider>
+        </GasSponsorProvider>
       </SolanaClientProvider>
     </SolanaHooksProvider>
   );

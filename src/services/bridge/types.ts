@@ -40,6 +40,16 @@ export interface FeeBreakdown {
   /** Flat network fee in source chain's native token (e.g., SOL lamports) */
   networkFee: string;
   totalFeeUsd?: number;
+  /** Relay-specific: Total relayer fee in source token smallest units */
+  relayerFee?: string;
+  /** Relay-specific: Human-readable relayer fee (e.g., "0.02693") */
+  relayerFeeFormatted?: string;
+  /** Relay-specific: SOL gas cost in lamports */
+  gasSolLamports?: string;
+  /** Relay-specific: Human-readable SOL gas (e.g., "0.001175") */
+  gasSolFormatted?: string;
+  /** Relay-specific: SOL gas cost in USD */
+  gasUsd?: string;
 }
 
 export interface Quote {
@@ -52,8 +62,23 @@ export interface Quote {
   transactionData: unknown;
 }
 
-export interface PreparedTransaction {
+/** Relay instruction format from API response */
+export interface RelayInstruction {
+  keys: Array<{
+    pubkey: string;
+    isSigner: boolean;
+    isWritable: boolean;
+  }>;
+  programId: string;
+  /** Hex-encoded instruction data */
   data: string;
+}
+
+export interface PreparedTransaction {
+  /** Hex-encoded serialized transaction (deBridge format) */
+  data?: string;
+  /** Raw instructions array (Relay format) - built into transaction at execution time */
+  instructions?: RelayInstruction[];
   chainType: 'solana' | 'evm';
 }
 
