@@ -56,8 +56,12 @@ export function QuoteDisplay({
   onSlippageChange,
   sourceTokenAddress,
 }: QuoteDisplayProps) {
-  // Get gas fee estimate for Kora sponsorship
-  const gasFee = useGasFee(quote, sourceTokenAddress ?? null);
+  // Get gas fee estimate (uses Pyth for Relay, Kora for deBridge)
+  const gasFee = useGasFee(
+    quote,
+    sourceTokenAddress ?? null,
+    sourceToken?.decimals ?? 6
+  );
   // Show nothing if no quote data and not loading
   if (!quote && !isLoading && !error) {
     return null;
@@ -98,41 +102,42 @@ export function QuoteDisplay({
 
           {/* Fee breakdown */}
           <div className="border-t border-slate-600/50 pt-3 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">Operating expenses</span>
-              <span className="text-slate-300">
-                +{sourceToken
-                  ? formatTokenAmount(quote.fees.operatingExpenses, sourceToken.decimals)
-                  : quote.fees.operatingExpenses}{' '}
-                {sourceToken?.symbol}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-1">
-                <span className="text-slate-400">Bridge protocol fee</span>
-                <span
-                  className="text-slate-500 cursor-help"
-                  title="Fee paid to deBridge network validators (takers)"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            {/* Relay fee - shown for Relay provider (already deducted from output) */}
+            {quote.fees.relayerFeeFormatted && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400">Relay fee</span>
+                  <span
+                    className="text-slate-500 cursor-help"
+                    title="Bridge fee (already deducted from amount you receive)"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                    <InfoIcon />
+                  </span>
+                </div>
+                <span className="text-slate-500">
+                  -{quote.fees.relayerFeeFormatted} {sourceToken?.symbol}
                 </span>
               </div>
-              <span className="text-slate-300">
-                {formatSolAmount(quote.fees.networkFee)} SOL
-              </span>
-            </div>
+            )}
+
+            {/* Bridge protocol fee - only show if user pays SOL (deBridge) */}
+            {quote.fees.networkFee !== '0' && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400">Bridge protocol fee</span>
+                  <span
+                    className="text-slate-500 cursor-help"
+                    title="Fee paid to bridge network validators"
+                  >
+                    <InfoIcon />
+                  </span>
+                </div>
+                <span className="text-slate-300">
+                  {formatSolAmount(quote.fees.networkFee)} SOL
+                </span>
+              </div>
+            )}
+
             {/* Gas sponsorship fee */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1">
@@ -142,19 +147,7 @@ export function QuoteDisplay({
                   className="text-slate-500 cursor-help"
                   title="Solana transaction gas paid in tokens via Kora"
                 >
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  <InfoIcon />
                 </span>
               </div>
               <span className="text-slate-300">
@@ -168,10 +161,18 @@ export function QuoteDisplay({
                       (~{formatSolAmount(gasFee.lamports.toString())} SOL)
                     </span>
                   </>
-                ) : gasFee.error ? (
-                  <span className="text-yellow-400 text-xs">Gas sponsored</span>
+                ) : quote.fees.gasSolFormatted ? (
+                  // Fallback: Use Relay's gas data when Kora estimate fails
+                  <span className="text-slate-400">
+                    ~{quote.fees.gasSolFormatted} SOL
+                    {quote.fees.gasUsd && (
+                      <span className="text-slate-500 text-xs ml-1">
+                        (${quote.fees.gasUsd})
+                      </span>
+                    )}
+                  </span>
                 ) : (
-                  <span className="text-slate-500">Gas sponsored</span>
+                  <span className="text-slate-500">Sponsored</span>
                 )}
               </span>
             </div>
@@ -186,9 +187,11 @@ export function QuoteDisplay({
                       sourceToken.decimals
                     )}{' '}
                     {sourceToken.symbol}
-                    <span className="text-slate-400 text-xs ml-1">
-                      + {formatSolAmount(quote.fees.networkFee)} SOL
-                    </span>
+                    {quote.fees.networkFee !== '0' && (
+                      <span className="text-slate-400 text-xs ml-1">
+                        + {formatSolAmount(quote.fees.networkFee)} SOL
+                      </span>
+                    )}
                   </>
                 ) : (
                   <>
@@ -196,9 +199,11 @@ export function QuoteDisplay({
                       ? formatTokenAmount(quote.sourceAmount, sourceToken.decimals)
                       : quote.sourceAmount}{' '}
                     {sourceToken?.symbol}
-                    <span className="text-slate-400 text-xs ml-1">
-                      + {formatSolAmount(quote.fees.networkFee)} SOL
-                    </span>
+                    {quote.fees.networkFee !== '0' && (
+                      <span className="text-slate-400 text-xs ml-1">
+                        + {formatSolAmount(quote.fees.networkFee)} SOL
+                      </span>
+                    )}
                   </>
                 )}
               </span>
@@ -218,14 +223,6 @@ export function QuoteDisplay({
                   />
                 </svg>
                 <span>Transaction gas is paid in {sourceToken?.symbol} via Kora sponsorship</span>
-              </div>
-            )}
-            {quote.fees.totalFeeUsd !== undefined && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Total fees</span>
-                <span className="text-slate-300">
-                  ${quote.fees.totalFeeUsd.toFixed(2)} USD
-                </span>
               </div>
             )}
           </div>
@@ -300,6 +297,24 @@ function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' }) {
         className="opacity-75"
         fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg
+      className="w-3 h-3"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     </svg>
   );

@@ -73,15 +73,28 @@ interface RelayStep {
   items: RelayStepItem[];
 }
 
+/** Relay instruction format for Solana transactions */
+interface RelayInstructionData {
+  keys: Array<{
+    pubkey: string;
+    isSigner: boolean;
+    isWritable: boolean;
+  }>;
+  programId: string;
+  data: string; // hex-encoded
+}
+
 interface RelayStepItem {
   status: string;
   data?: {
-    chainId: string | number;
-    to: string;
-    data: string;
+    chainId?: string | number;
+    to?: string;
+    data?: string;
     value?: string;
+    // Solana instructions array format
+    instructions?: RelayInstructionData[];
   };
-  // Solana-specific transaction data
+  // Solana-specific transaction data (legacy format - may not be present)
   txData?: string; // Base64-encoded Solana transaction
   check?: {
     endpoint: string;
@@ -154,16 +167,14 @@ interface RelayChainInfo {
   explorerUrl?: string;
 }
 
-interface RelayRequestStatusResponse {
-  status: string;
-  inTxHash?: string;
-  outTxHash?: string;
-  details?: {
-    currencyIn?: { amount: string };
-    currencyOut?: { amount: string };
-  };
-  createdAt?: string;
-  updatedAt?: string;
+interface RelayIntentStatusResponse {
+  status: string;  // "refund" | "waiting" | "failure" | "pending" | "submitted" | "success"
+  details?: string;
+  inTxHashes?: string[];  // Array of incoming transaction hashes
+  txHashes?: string[];    // Array of outgoing transaction hashes
+  updatedAt?: number;     // Timestamp (milliseconds)
+  originChainId?: number;
+  destinationChainId?: number;
 }
 
 interface RelayErrorResponse {
@@ -333,9 +344,11 @@ export class RelayProvider implements IBridgeProvider {
         const item = txStep.items[0];
 
         if (request.sourceChainId === 'solana') {
-          // Solana transactions come as base64 in txData field
-          // We need to convert to hex for consistency with deBridge
+          // Relay returns Solana transactions in two possible formats:
+          // 1. txData: Base64-encoded serialized transaction (legacy)
+          // 2. data.instructions: Array of instructions to build into transaction
           if (item.txData) {
+            // Legacy format: pre-serialized transaction
             const bytes = Uint8Array.from(atob(item.txData), (c) =>
               c.charCodeAt(0)
             );
@@ -348,8 +361,19 @@ export class RelayProvider implements IBridgeProvider {
               data: hex,
               chainType: 'solana',
             };
+          } else if (item.data?.instructions && item.data.instructions.length > 0) {
+            // Instructions format: store raw instructions, build transaction at execution time
+            // This allows us to fetch a fresh blockhash when executing
+            transactionData = {
+              instructions: item.data.instructions.map((inst) => ({
+                keys: inst.keys,
+                programId: inst.programId,
+                data: inst.data,
+              })),
+              chainType: 'solana',
+            };
           }
-        } else if (item.data) {
+        } else if (item.data?.data) {
           // EVM transactions
           transactionData = {
             data: item.data.data,
@@ -372,10 +396,17 @@ export class RelayProvider implements IBridgeProvider {
         fees: {
           // Operating expenses in source token (relayer service fee)
           operatingExpenses: data.fees.relayerService.amount || '0',
-          // Network fee - Relay doesn't require native token fee from user
-          // when using fee subsidization
-          networkFee: data.fees.gas.amount || '0',
+          // Network fee - When depositFeePayer is set, Kora pays all SOL fees
+          // so user pays 0 SOL. The cost is factored into the quote.
+          networkFee: this.depositFeePayer ? '0' : (data.fees.gas.amount || '0'),
           totalFeeUsd,
+          // Relay-specific fee data for display
+          relayerFee: data.fees.relayer.amount,
+          relayerFeeFormatted: data.fees.relayer.amountFormatted,
+          // SOL gas cost (for Kora sponsorship display)
+          gasSolLamports: data.fees.gas.amount,
+          gasSolFormatted: data.fees.gas.amountFormatted,
+          gasUsd: data.fees.gas.amountUsd,
         },
         estimatedTimeSeconds: data.details.timeEstimate,
         expiresAt: new Date(Date.now() + 30000), // 30 seconds
@@ -437,21 +468,27 @@ export class RelayProvider implements IBridgeProvider {
    */
   async getOrderStatus(orderId: string): Promise<OrderInfo> {
     try {
-      const data = await this.fetch<RelayRequestStatusResponse>(
-        `/requests/${orderId}/status`
+      const data = await this.fetch<RelayIntentStatusResponse>(
+        `/intents/status/v3?requestId=${orderId}`
       );
 
       return {
         orderId,
         status: this.mapOrderStatus(data.status),
-        sourceChainId: 'solana', // We only support Solana as source
-        destinationChainId: 'unknown',
-        sourceAmount: data.details?.currencyIn?.amount || '0',
-        destinationAmount: data.details?.currencyOut?.amount || '0',
-        sourceTxHash: data.inTxHash,
-        destinationTxHash: data.outTxHash,
-        createdAt: new Date(data.createdAt || Date.now()),
-        updatedAt: new Date(data.updatedAt || Date.now()),
+        sourceChainId: data.originChainId
+          ? this.toNormalizedChainId(data.originChainId)
+          : 'solana',  // Fallback to solana
+        destinationChainId: data.destinationChainId
+          ? this.toNormalizedChainId(data.destinationChainId)
+          : 'unknown',
+        sourceAmount: '0',  // Not available in v3 status API
+        destinationAmount: '0',  // Not available in v3 status API
+        sourceTxHash: data.inTxHashes?.[0],  // Take first hash from array
+        destinationTxHash: data.txHashes?.[0],  // Take first hash from array
+        createdAt: new Date(),  // Not available in v3 API, use current time
+        updatedAt: data.updatedAt
+          ? new Date(data.updatedAt)  // Convert timestamp to Date
+          : new Date(),
       };
     } catch (error) {
       throw new Error(

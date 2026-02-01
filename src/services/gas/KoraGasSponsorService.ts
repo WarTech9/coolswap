@@ -176,6 +176,61 @@ export class KoraGasSponsorService implements GasSponsorService {
   }
 
   /**
+   * Build payment instruction with pre-calculated amount (no Kora estimation)
+   * Used when gas estimate is already known (e.g., from Relay's gasSolLamports)
+   *
+   * This bypasses Kora's estimateTransactionFee which fails for Relay transactions
+   * due to incompatibility with the depositFeePayer flow.
+   */
+  async getPaymentInstructionWithAmount(
+    tokenAmount: bigint,
+    feeToken: string,
+    sourceWallet: string,
+    tokenProgramId?: string
+  ): Promise<PaymentInstructionResult> {
+    assertIsAddress(sourceWallet);
+    assertIsAddress(feeToken);
+
+    const tokenProgram = tokenProgramId
+      ? address(tokenProgramId)
+      : TOKEN_PROGRAM_ADDRESS;
+
+    // Get payment destination (Kora's fee payer address)
+    const feePayer = await this.getFeePayer();
+
+    // Find source token account (user's ATA)
+    const [sourceTokenAccount] = await findAssociatedTokenPda({
+      owner: address(sourceWallet),
+      tokenProgram,
+      mint: address(feeToken),
+    });
+
+    // Find destination token account (sponsor's ATA)
+    const [destinationTokenAccount] = await findAssociatedTokenPda({
+      owner: address(feePayer),
+      tokenProgram,
+      mint: address(feeToken),
+    });
+
+    // Create transfer instruction from user to sponsor
+    const paymentInstruction = getTransferInstruction({
+      source: sourceTokenAccount,
+      destination: destinationTokenAccount,
+      authority: createNoopSigner(address(sourceWallet)),
+      amount: tokenAmount,
+    });
+
+    return {
+      originalTransaction: '', // Not needed for this flow
+      paymentInstruction,
+      paymentAmount: tokenAmount,
+      paymentToken: feeToken,
+      paymentAddress: feePayer,
+      signerAddress: feePayer,
+    };
+  }
+
+  /**
    * Get list of tokens supported for gas payment
    * Results are cached since the list doesn't change during a session
    */

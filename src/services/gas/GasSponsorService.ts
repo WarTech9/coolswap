@@ -98,6 +98,22 @@ export interface GasSponsorService {
   ): Promise<PaymentInstructionResult>;
 
   /**
+   * Build payment instruction with pre-calculated amount (no Kora estimation)
+   * Used when gas estimate is already known (e.g., from Relay's gasSolLamports)
+   * @param tokenAmount - Pre-calculated token amount to pay
+   * @param feeToken - Token mint address to use for payment
+   * @param sourceWallet - User's wallet address
+   * @param tokenProgramId - Optional token program ID (defaults to standard Token program)
+   * @returns Payment instruction details
+   */
+  getPaymentInstructionWithAmount(
+    tokenAmount: bigint,
+    feeToken: string,
+    sourceWallet: string,
+    tokenProgramId?: string
+  ): Promise<PaymentInstructionResult>;
+
+  /**
    * Get list of token mint addresses supported for gas payment
    * Frontend should filter source tokens to only show these
    * @returns Array of token mint addresses (e.g., USDC, USDT)

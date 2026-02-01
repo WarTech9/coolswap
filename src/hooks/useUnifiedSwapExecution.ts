@@ -21,12 +21,14 @@ export type { ExecutionStatus, UseSwapExecutionResult };
  *
  * @param quote - The current quote containing transaction data
  * @param sourceTokenAddress - Source token mint address (for deBridge Kora payment)
+ * @param sourceTokenDecimals - Source token decimals (for Relay gas conversion)
  * @param onPause - Callback to pause quote auto-refresh
  * @param onResume - Callback to resume quote auto-refresh
  */
 export function useUnifiedSwapExecution(
   quote: Quote | null,
   sourceTokenAddress: string | null,
+  sourceTokenDecimals: number,
   onPause?: () => void,
   onResume?: () => void
 ): UseSwapExecutionResult {
@@ -43,6 +45,8 @@ export function useUnifiedSwapExecution(
 
   const relayExecution = useRelaySwapExecution(
     providerType === 'relay' ? quote : null,
+    sourceTokenAddress,
+    sourceTokenDecimals,
     providerType === 'relay' ? onPause : undefined,
     providerType === 'relay' ? onResume : undefined
   );

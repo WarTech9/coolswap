@@ -1,0 +1,43 @@
+# Vercel ignore file
+# Files and directories to exclude from deployment
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Development files
+.env.local
+.env.development
+*.log
+
+# Server wallet (NEVER deploy secret key!)
+server-wallet.json
+*.keypair
+
+# Tests
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+vitest.config.ts
+coverage
+
+# Documentation
+docs
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore

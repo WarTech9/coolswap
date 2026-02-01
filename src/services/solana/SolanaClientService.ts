@@ -42,12 +42,53 @@ export class SolanaClientService {
   }
 
   /**
+   * Get recent blockhash with full lifetime info for transaction building
+   */
+  async getLatestBlockhash(): Promise<{
+    blockhash: string;
+    lastValidBlockHeight: bigint;
+  }> {
+    const result = await this.client.runtime.rpc
+      .getLatestBlockhash({ commitment: 'confirmed' })
+      .send();
+    return {
+      blockhash: result.value.blockhash,
+      lastValidBlockHeight: result.value.lastValidBlockHeight,
+    };
+  }
+
+  /**
    * Fetch account info for a given address
    * Returns AccountCacheEntry with owner as Address or null if account doesn't exist
    */
   async getAccountInfo(addressStr: string): Promise<AccountCacheEntry> {
     const addr = address(addressStr);
     return this.client.actions.fetchAccount(addr);
+  }
+
+  /**
+   * Simulate a transaction to check for errors
+   * Returns simulation result with logs
+   */
+  async simulateTransaction(serializedTx: Uint8Array): Promise<{
+    err: unknown | null;
+    logs: string[] | null;
+  }> {
+    // Encode transaction as base64
+    const encodedTx = Buffer.from(serializedTx).toString('base64') as Base64EncodedWireTransaction;
+
+    // Simulate the transaction
+    const result = await this.client.runtime.rpc
+      .simulateTransaction(encodedTx, {
+        encoding: 'base64',
+        commitment: 'confirmed',
+      })
+      .send();
+
+    return {
+      err: result.value.err,
+      logs: result.value.logs,
+    };
   }
 
   /**

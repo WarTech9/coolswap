@@ -11,6 +11,7 @@ interface EnvConfig {
   RELAY_API_URL: string;
   RELAY_API_KEY?: string;
   KORA_URL: string;
+  SERVER_WALLET_PUBLIC_KEY?: string;
   IS_DEVELOPMENT: boolean;
   IS_PRODUCTION: boolean;
 }
@@ -51,6 +52,7 @@ export const env: EnvConfig = {
   RELAY_API_URL: getEnvVar('VITE_RELAY_API_URL', 'https://api.relay.link'),
   RELAY_API_KEY: getOptionalEnvVar('VITE_RELAY_API_KEY'),
   KORA_URL: getEnvVar('VITE_KORA_URL', 'http://localhost:8080'),
+  SERVER_WALLET_PUBLIC_KEY: getOptionalEnvVar('VITE_SERVER_WALLET_PUBLIC_KEY'),
   IS_DEVELOPMENT: import.meta.env.DEV,
   IS_PRODUCTION: import.meta.env.PROD,
 };
@@ -64,5 +66,6 @@ declare global {
     readonly VITE_RELAY_API_URL?: string;
     readonly VITE_RELAY_API_KEY?: string;
     readonly VITE_KORA_URL?: string;
+    readonly VITE_SERVER_WALLET_PUBLIC_KEY?: string;
   }
 }

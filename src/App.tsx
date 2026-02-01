@@ -84,6 +84,9 @@ function SwapForm() {
     resume: resumeQuote,
   } = useQuote(quoteParams);
 
+  // Get source token decimals for gas conversion (default to 6 for USDC)
+  const sourceTokenDecimals = selectedSourceToken?.decimals ?? 6;
+
   // Swap execution hook - automatically uses deBridge or Relay based on provider
   const {
     execute: executeSwap,
@@ -92,7 +95,7 @@ function SwapForm() {
     error: executionError,
     status: executionStatus,
     reset: resetExecution,
-  } = useUnifiedSwapExecution(quote, state.sourceToken, pauseQuote, resumeQuote);
+  } = useUnifiedSwapExecution(quote, state.sourceToken, sourceTokenDecimals, pauseQuote, resumeQuote);
 
   // Order status tracking - start polling after tx is confirmed
   const orderId = executionStatus === 'completed' ? quote?.id ?? null : null;

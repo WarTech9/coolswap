@@ -39,13 +39,6 @@ function getExplorerUrl(signature: string): string {
 }
 
 /**
- * Get deBridge order explorer URL
- */
-function getDeBridgeOrderUrl(orderId: string): string {
-  return `https://app.debridge.finance/order?orderId=${orderId}`;
-}
-
-/**
  * Spinning loader animation
  */
 function Spinner({ className = '' }: { className?: string }) {
@@ -242,7 +235,7 @@ export function SwapStatusModal({
                       Order Submitted
                     </h3>
                     <p className="text-slate-400 text-sm mb-4">
-                      Your order has been submitted to deBridge. Waiting for fulfillment...
+                      Your order has been submitted to the bridge. Waiting for fulfillment...
                     </p>
                   </>
                 ) : orderInfo && (orderInfo.status === OrderStatus.FULFILLED || orderInfo.status === OrderStatus.COMPLETED) ? (
@@ -296,22 +289,10 @@ export function SwapStatusModal({
                     href={getExplorerUrl(txSignature)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-solana-purple hover:text-solana-purple/80 mb-2"
+                    className="inline-flex items-center gap-2 text-sm text-solana-purple hover:text-solana-purple/80 mb-4"
                   >
                     View Solana TX
                     <ExternalLinkIcon className="w-4 h-4" />
-                  </a>
-                )}
-
-                {/* deBridge order link */}
-                {orderInfo && (
-                  <a
-                    href={getDeBridgeOrderUrl(orderInfo.orderId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-sm text-blue-400 hover:text-blue-300 mb-4"
-                  >
-                    Track on deBridge
                   </a>
                 )}
 

@@ -86,12 +86,13 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
   const [secondsUntilExpiry, setSecondsUntilExpiry] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Refs for cleanup
+  // Refs for cleanup and state tracking
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expiryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
   const isPausedRef = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // Clear all timers
   const clearTimers = useCallback(() => {
@@ -115,6 +116,11 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
       return;
     }
 
+    // Prevent simultaneous fetches (race condition guard)
+    if (isFetchingRef.current) {
+      return;
+    }
+
     // Clear any existing timers to prevent race conditions on auto-refresh
     clearTimers();
 
@@ -132,6 +138,7 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
       slippageTolerance: params.slippage,
     };
 
+    isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -179,6 +186,7 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
+      isFetchingRef.current = false;
     }
   }, [params, bridgeProvider, clearTimers]);
 
@@ -230,8 +238,10 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
       isMountedRef.current = false;
       clearTimers();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // Only re-run when actual param values change
+    // Note: clearTimers and fetchQuote are intentionally excluded to prevent circular dependency
     params?.sourceToken,
     params?.destinationChain,
     params?.destinationToken,
@@ -239,8 +249,6 @@ export function useQuote(params: UseQuoteParams | null): UseQuoteResult {
     params?.senderAddress,
     params?.recipientAddress,
     params?.slippage,
-    clearTimers,
-    fetchQuote,
   ]);
 
   return {
