@@ -22,6 +22,8 @@ export interface Token {
   logoUri?: string;
   isToken2022?: boolean;
   transferFeePercent?: number;
+  transferFeeBasisPoints?: number;
+  maximumFee?: bigint;
 }
 
 export interface QuoteRequest {

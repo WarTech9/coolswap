@@ -7,6 +7,7 @@ import { createContext, useContext, useMemo, ReactNode } from 'react';
 import { TokenService, Token2022Service } from '@/services/token';
 import { useBridgeProvider } from './BridgeContext';
 import { useSolanaClient } from './SolanaContext';
+import { env } from '@/config/env';
 
 interface TokenContextType {
   tokenService: TokenService;
@@ -21,7 +22,7 @@ export function TokenProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TokenContextType>(() => {
     const tokenService = new TokenService(bridgeProvider);
-    const token2022Service = new Token2022Service(solanaClient);
+    const token2022Service = new Token2022Service(solanaClient, env.SOLANA_RPC_URL);
 
     return { tokenService, token2022Service };
   }, [bridgeProvider, solanaClient]);

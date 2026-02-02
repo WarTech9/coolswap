@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "@solana-program/compute-budget": "^0.12.0",
+    "@solana-program/memo": "^0.10.0",
     "@solana-program/token": "^0.9.0",
+    "@solana-program/token-2022": "^0.8.0",
     "@solana/addresses": "^5.5.1",
     "@solana/client": "^1.7.0",
     "@solana/keys": "^5.5.1",
@@ -22,6 +24,7 @@
     "@solana/react-hooks": "^1.4.1",
     "@solana/spl-token": "^0.4.14",
     "@solana/transactions": "^5.5.1",
+    "@solana/web3.js": "^1.98.4",
     "buffer": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -33,6 +36,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "2.1.9",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",

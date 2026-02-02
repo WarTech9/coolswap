@@ -3,16 +3,31 @@
  * Handles Token-2022 mints with transfer fees
  */
 
-import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import {
+  TOKEN_2022_PROGRAM_ID,
+  getMint,
+  getTransferFeeConfig,
+  getExtensionTypes,
+  ExtensionType,
+} from '@solana/spl-token';
+import { Connection, PublicKey } from '@solana/web3.js';
 import type { SolanaClientService } from '../solana/SolanaClientService';
 
 export interface Token2022Info {
   isToken2022: boolean;
   transferFeePercent: number | null;
+  transferFeeBasisPoints: number | null;
+  maximumFee: bigint | null;
+  requiresMemoTransfers: boolean;
 }
 
 export class Token2022Service {
-  constructor(private solanaClient: SolanaClientService) {}
+  private connection: Connection;
+
+  constructor(private solanaClient: SolanaClientService, rpcEndpoint: string) {
+    // Create a Connection instance for @solana/spl-token compatibility
+    this.connection = new Connection(rpcEndpoint, 'confirmed');
+  }
 
   /**
    * Detect if a mint is Token-2022 by checking account owner
@@ -26,6 +41,9 @@ export class Token2022Service {
         return {
           isToken2022: false,
           transferFeePercent: null,
+          transferFeeBasisPoints: null,
+          maximumFee: null,
+          requiresMemoTransfers: false,
         };
       }
 
@@ -36,21 +54,62 @@ export class Token2022Service {
         return {
           isToken2022: false,
           transferFeePercent: null,
+          transferFeeBasisPoints: null,
+          maximumFee: null,
+          requiresMemoTransfers: false,
         };
       }
 
-      // Token-2022 detected
-      // Transfer fee extraction requires parsing the mint account data
-      // This will be enhanced in future phases
-      // TODO: Transfer fee extraction not yet implemented
-      // This may cause incorrect amount calculations for Token-2022 mints with transfer fees
-      console.warn(
-        `Token-2022 mint detected (${mintAddress}), but transfer fee extraction not implemented. ` +
-        `Amounts may be inaccurate if this mint has transfer fees enabled.`
-      );
+      // Token-2022 detected - extract transfer fee config and extensions
+      try {
+        const mintInfo = await getMint(
+          this.connection,
+          new PublicKey(mintAddress),
+          'confirmed',
+          TOKEN_2022_PROGRAM_ID
+        );
+
+        // Check for MemoTransfer extension
+        const extensions = getExtensionTypes(mintInfo.tlvData);
+        const requiresMemoTransfers = extensions.includes(ExtensionType.MemoTransfer);
+
+        const transferFeeConfig = getTransferFeeConfig(mintInfo);
+
+        if (transferFeeConfig) {
+          const { newerTransferFee } = transferFeeConfig;
+          const basisPoints = newerTransferFee.transferFeeBasisPoints;
+          const maxFee = newerTransferFee.maximumFee;
+
+          // Convert basis points to percentage
+          const feePercent = Number(basisPoints) / 10000;
+
+          return {
+            isToken2022: true,
+            transferFeePercent: feePercent,
+            transferFeeBasisPoints: Number(basisPoints),
+            maximumFee: maxFee,
+            requiresMemoTransfers,
+          };
+        }
+
+        // Token-2022 without transfer fee config
+        return {
+          isToken2022: true,
+          transferFeePercent: null,
+          transferFeeBasisPoints: null,
+          maximumFee: null,
+          requiresMemoTransfers,
+        };
+      } catch (error) {
+        console.warn('Failed to get transfer fee config:', error);
+      }
+
       return {
         isToken2022: true,
         transferFeePercent: null,
+        transferFeeBasisPoints: null,
+        maximumFee: null,
+        requiresMemoTransfers: false,
       };
     } catch (error) {
       // If any error occurs, assume regular SPL token
@@ -58,6 +117,9 @@ export class Token2022Service {
       return {
         isToken2022: false,
         transferFeePercent: null,
+        transferFeeBasisPoints: null,
+        maximumFee: null,
+        requiresMemoTransfers: false,
       };
     }
   }

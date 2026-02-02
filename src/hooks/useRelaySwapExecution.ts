@@ -40,10 +40,14 @@ import {
   TOKEN_PROGRAM_ADDRESS,
   getTransferInstruction,
 } from '@solana-program/token';
+import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { getSetComputeUnitLimitInstruction } from '@solana-program/compute-budget';
+import { getAddMemoInstruction } from '@solana-program/memo';
 import { useSolanaClient } from '@/context/SolanaContext';
 import { convertRelayInstruction } from '@/services/solana';
 import { convertLamportsToToken } from '@/services/price';
+import { Token2022Service } from '@/services/token/Token2022Service';
+import { calculateGrossAmount } from '@/services/token/Token2022Utils';
 import { env } from '@/config/env';
 import type { Quote, PreparedTransaction } from '@/services/bridge/types';
 
@@ -181,50 +185,103 @@ export function useRelaySwapExecution(
       console.log('Token decimals:', sourceTokenDecimals);
 
       // 1c. Convert SOL lamports to token amount using Pyth
-      const tokenAmount = await convertLamportsToToken(
+      // Note: convertLamportsToToken already includes 10% buffer for price volatility
+      const baseTokenAmount = await convertLamportsToToken(
         gasLamports,
         sourceTokenAddress,
         sourceTokenDecimals
       );
 
+      console.log('=== TOKEN-2022 DETECTION ===');
+      console.log('Source token:', sourceTokenAddress);
+
+      // 1d. Detect Token-2022 and apply gross-up if needed
+      const token2022Service = new Token2022Service(solanaClient, env.SOLANA_RPC_URL);
+      const tokenInfo = await token2022Service.detectToken2022(sourceTokenAddress);
+
+      console.log('Is Token-2022:', tokenInfo.isToken2022);
+      console.log('Requires memo transfers:', tokenInfo.requiresMemoTransfers);
+      console.log('Transfer fee (bps):', tokenInfo.transferFeeBasisPoints);
+      console.log('Maximum fee:', tokenInfo.maximumFee?.toString());
+
+      // Apply gross-up if Token-2022 with transfer fees
+      let tokenAmount = baseTokenAmount;
+      if (tokenInfo.isToken2022 && tokenInfo.transferFeeBasisPoints !== null && tokenInfo.maximumFee !== null) {
+        // Calculate gross amount so recipient receives baseTokenAmount after fees
+        const grossAmount = calculateGrossAmount(baseTokenAmount, {
+          transferFeeBasisPoints: tokenInfo.transferFeeBasisPoints,
+          maximumFee: tokenInfo.maximumFee,
+        });
+
+        console.log('Transfer fee detected - applying gross-up calculation');
+        console.log('Base amount (net):', baseTokenAmount.toString());
+        console.log('Gross amount (with fee):', grossAmount.toString());
+        console.log('Additional fee:', (grossAmount - baseTokenAmount).toString());
+
+        tokenAmount = grossAmount;
+      } else {
+        console.log('No transfer fees - using base amount');
+      }
+
       console.log('Payment amount (raw):', tokenAmount.toString());
       console.log('Payment amount (token):', Number(tokenAmount) / Math.pow(10, sourceTokenDecimals));
       console.log('===============================');
 
-      // 1d. Get server wallet address (our fee payer)
+      // 1e. Select correct token program based on token type
+      // Token-2022 tokens require TOKEN_2022_PROGRAM_ADDRESS for ATA derivation and transfers
+      const tokenProgramAddress = tokenInfo.isToken2022
+        ? TOKEN_2022_PROGRAM_ADDRESS
+        : TOKEN_PROGRAM_ADDRESS;
+
+      console.log('Token program:', tokenProgramAddress);
+
+      // 1f. Get server wallet address (our fee payer)
       const serverWallet = env.SERVER_WALLET_PUBLIC_KEY;
       if (!serverWallet) {
         throw new Error('Server wallet not configured. Please set VITE_SERVER_WALLET_PUBLIC_KEY in .env');
       }
 
-      // 1e. Build payment instruction: user → server (token transfer)
+      // 1g. Build payment instruction: user → server (token transfer)
       const userAddress = address(wallet.account.address);
       const serverAddress = address(serverWallet.trim()); // Trim whitespace from env variable
       const mintAddress = address(sourceTokenAddress);
 
-      // Find user's ATA (source)
+      // Find user's ATA (source) - use correct token program
       const [sourceTokenAccount] = await findAssociatedTokenPda({
         owner: userAddress,
-        tokenProgram: TOKEN_PROGRAM_ADDRESS,
+        tokenProgram: tokenProgramAddress,
         mint: mintAddress,
       });
 
-      // Find server's ATA (destination)
+      // Find server's ATA (destination) - use correct token program
       const [destinationTokenAccount] = await findAssociatedTokenPda({
         owner: serverAddress,
-        tokenProgram: TOKEN_PROGRAM_ADDRESS,
+        tokenProgram: tokenProgramAddress,
         mint: mintAddress,
       });
 
       // Create transfer instruction (user → server for gas reimbursement)
       // NOTE: Server's ATA must exist before this transaction. The server should
       // create ATAs for common tokens (USDC, USDT, SOL) ahead of time.
+      // Use correct token program for Token-2022 tokens
       const paymentInstruction = getTransferInstruction({
         source: sourceTokenAccount,
         destination: destinationTokenAccount,
         authority: createNoopSigner(userAddress),
         amount: tokenAmount,
+      }, {
+        programAddress: tokenProgramAddress,
       });
+
+      // 1h. Conditionally add memo instruction for Token-2022 with MemoTransfer extension
+      // Only add if the token requires memo transfers (saves compute units otherwise)
+      const memoInstruction = tokenInfo.requiresMemoTransfers
+        ? getAddMemoInstruction({
+            memo: 'CoolSwap gas reimbursement',
+          })
+        : null;
+
+      console.log('Memo instruction required:', tokenInfo.requiresMemoTransfers);
 
       // Step 2: Build transaction with PAYMENT FIRST (Instruction 0 Rule)
       const decoder = getTransactionDecoder();
@@ -252,15 +309,18 @@ export function useRelaySwapExecution(
         // Default tx has ~30k CU. We need:
         // - Payment instruction: ~5k CU
         // - Relay swap transfer: ~5k CU
-        // - Memo: ~21k CU
-        // Total: ~31k CU, so set limit to 60k for safety
+        // - Memo (if required): ~700 CU
+        // Total: ~11k CU (or ~10k without memo), so set limit to 60k for safety
         const computeBudgetIx = getSetComputeUnitLimitInstruction({
           units: 60_000,
         });
 
-        // Order: ComputeBudget FIRST, then payment, then Relay instructions
-        const allInstructions = [computeBudgetIx, paymentInstruction, ...otherRelayIx];
-        //                        ↑ COMPUTE FIRST  ↑ PAYMENT SECOND  ↑ Relay swap follows
+        // Order: ComputeBudget FIRST, then Memo (if required), then payment, then Relay instructions
+        // Build instruction array conditionally
+        const allInstructions = memoInstruction
+          ? [computeBudgetIx, memoInstruction, paymentInstruction, ...otherRelayIx]
+          : [computeBudgetIx, paymentInstruction, ...otherRelayIx];
+        //  ↑ COMPUTE FIRST  ↑ MEMO (conditional)  ↑ PAYMENT  ↑ Relay swap follows
 
         // 2c. Get fresh blockhash
         const { blockhash, lastValidBlockHeight } = await solanaClient.getLatestBlockhash();

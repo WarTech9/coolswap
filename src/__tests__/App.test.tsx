@@ -5,8 +5,9 @@ import App from '../App';
 describe('App', () => {
   it('renders CoolSwap header', () => {
     render(<App />);
-    const header = screen.getByRole('heading', { level: 1 });
-    expect(header).toHaveTextContent('CoolSwap');
+    const headers = screen.getAllByRole('heading', { level: 1 });
+    // First h1 should be the header logo with "CoolSwap"
+    expect(headers[0]).toHaveTextContent('CoolSwap');
   });
 
   it('renders swap form with token and chain selectors', () => {
