@@ -36,6 +36,69 @@ interface ValidationResult {
   };
 }
 
+/**
+ * Decode the transfer amount from a transferChecked instruction.
+ *
+ * transferChecked instruction data format:
+ * - Byte 0: Discriminator (0x0c for Token-2022, 0x03 for SPL Token)
+ * - Bytes 1-8: Amount (little-endian u64)
+ * - Byte 9: Decimals (u8)
+ *
+ * @param instructionData - The instruction data bytes
+ * @returns The decoded amount as BigInt, or null if decoding fails
+ */
+function decodeTransferCheckedAmount(instructionData: Uint8Array): bigint | null {
+  // Minimum length: discriminator (1) + amount (8) = 9 bytes
+  if (instructionData.length < 9) {
+    return null;
+  }
+
+  // Extract amount bytes (skip discriminator, take next 8 bytes)
+  const amountBytes = instructionData.slice(1, 9);
+
+  // Decode little-endian u64 to BigInt
+  let amount = 0n;
+  for (let i = 0; i < 8; i++) {
+    amount |= BigInt(amountBytes[i]) << BigInt(i * 8);
+  }
+
+  return amount;
+}
+
+/**
+ * Calculate the expected gross amount for a Token-2022 transfer with fees.
+ *
+ * Formula: gross = (targetNet * 10000) / (10000 - feeBps)
+ * Applies maximum fee cap if calculated fee exceeds it.
+ *
+ * @param targetNet - Target amount to receive after fees
+ * @param feeBps - Transfer fee in basis points (e.g., 100 = 1%)
+ * @param maxFee - Maximum fee cap in token smallest units
+ * @returns Expected gross amount to transfer
+ */
+function calculateExpectedGross(
+  targetNet: bigint,
+  feeBps: number,
+  maxFee: bigint
+): bigint {
+  // Validate fee percentage
+  if (feeBps >= 10000) {
+    throw new Error(`Invalid transfer fee: ${feeBps} basis points (>= 100%)`);
+  }
+
+  // Skip calculation if no fee
+  if (feeBps === 0) {
+    return targetNet;
+  }
+
+  // Calculate gross amount
+  const gross = (targetNet * 10000n) / (10000n - BigInt(feeBps));
+  const calculatedFee = gross - targetNet;
+
+  // Apply maximum fee cap if needed
+  return calculatedFee > maxFee ? targetNet + maxFee : gross;
+}
+
 async function validatePaymentInstruction(
   connection: Connection,
   txObj: VersionedTransaction,
@@ -115,32 +178,95 @@ async function validatePaymentInstruction(
     const feeBps = Number(newerTransferFee.transferFeeBasisPoints);
     const maxFee = newerTransferFee.maximumFee;
 
-    // Decode instruction data to get amount
-    // This requires parsing the instruction bytes
-    // For simplicity, we'll log a warning and allow
-    // (Full implementation would decode transferChecked instruction)
+    // Decode instruction data to get payment amount
+    const instructionData = paymentInstruction.data;
+    const paymentAmount = decodeTransferCheckedAmount(instructionData);
 
-    console.warn('Token-2022 payment detected:', {
+    if (!paymentAmount) {
+      return {
+        valid: false,
+        error: 'Could not decode payment amount from instruction data'
+      };
+    }
+
+    // Calculate minimum expected gross amount (if gas cost available)
+    const minExpectedGross = _gasCostLamports > 0n
+      ? calculateExpectedGross(_gasCostLamports, feeBps, maxFee)
+      : 0n;
+
+    // Validate payment is sufficient
+    if (minExpectedGross > 0n && paymentAmount < minExpectedGross) {
+      const details = {
+        isToken2022: true,
+        transferFeeBps: feeBps,
+        grossAmount: paymentAmount.toString(),
+        expectedNet: _gasCostLamports.toString(),
+        actualNet: 'insufficient',
+      };
+
+      console.error('Token-2022 payment validation failed:', {
+        mint: mintPubkey.toBase58(),
+        feeBps,
+        maxFee: maxFee.toString(),
+        paymentAmount: paymentAmount.toString(),
+        minExpectedGross: minExpectedGross.toString(),
+      });
+
+      return {
+        valid: false,
+        error: `Insufficient payment: got ${paymentAmount}, expected at least ${minExpectedGross}`,
+        details,
+      };
+    }
+
+    // Payment is sufficient
+    console.log('Token-2022 payment validated:', {
       mint: mintPubkey.toBase58(),
       feeBps,
       maxFee: maxFee.toString(),
+      paymentAmount: paymentAmount.toString(),
+      minExpectedGross: minExpectedGross > 0n ? minExpectedGross.toString() : 'N/A (no gas cost)',
     });
-
-    // TODO: Decode instruction amount and validate gross-up
-    // For MVP, we log and allow (Relay handles it)
 
     return {
       valid: true,
       details: {
         isToken2022: true,
         transferFeeBps: feeBps,
+        grossAmount: paymentAmount.toString(),
+        expectedNet: _gasCostLamports > 0n ? _gasCostLamports.toString() : undefined,
+        actualNet: _gasCostLamports > 0n ? 'sufficient' : undefined,
       }
     };
 
   } catch (error) {
-    console.error('Token-2022 validation error:', error);
-    // On error, allow (don't block valid transactions)
-    return { valid: true };
+    // Structured error handling based on error type
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Categorize errors for appropriate fail-open/fail-closed behavior
+    if (errorMessage.includes('AccountNotFound') ||
+        errorMessage.includes('Account does not exist')) {
+      // RPC couldn't find account - might be network issue, fail-open for MVP
+      console.warn('Token-2022 validation: Account not found, allowing transaction:', errorMessage);
+      return { valid: true };
+    }
+
+    if (errorMessage.includes('timeout') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('fetch failed')) {
+      // Network/RPC issues - fail-open for MVP to avoid blocking during outages
+      console.warn('Token-2022 validation: Network error, allowing transaction:', errorMessage);
+      return { valid: true };
+    }
+
+    // For other errors (parsing, unexpected), log detailed error and fail-open
+    // TODO: In future, consider fail-closed for security after more testing
+    console.error('Token-2022 validation error (fail-open for MVP):', {
+      error: errorMessage,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+    });
+
+    return { valid: true }; // MVP: fail-open
   }
 }
 

@@ -12,6 +12,7 @@ import {
 } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import type { SolanaClientService } from '../solana/SolanaClientService';
+import { debug } from '@/utils/debug';
 
 export interface Token2022Info {
   isToken2022: boolean;
@@ -101,7 +102,7 @@ export class Token2022Service {
           requiresMemoTransfers,
         };
       } catch (error) {
-        console.warn('Failed to get transfer fee config:', error);
+        debug.warn('Failed to get transfer fee config:', error);
       }
 
       return {
@@ -113,7 +114,7 @@ export class Token2022Service {
       };
     } catch (error) {
       // If any error occurs, assume regular SPL token
-      console.error('Error detecting Token-2022:', error);
+      debug.error('Error detecting Token-2022:', error);
       return {
         isToken2022: false,
         transferFeePercent: null,

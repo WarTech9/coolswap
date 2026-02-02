@@ -7,6 +7,7 @@ import { useBridgeContext } from '@/context/BridgeContext';
 import { useRelaySwapExecution } from './useRelaySwapExecution';
 import type { Quote } from '@/services/bridge/types';
 import type { UseRelaySwapExecutionResult } from './useRelaySwapExecution';
+import { debug } from '@/utils/debug';
 
 export type ExecutionStatus = 'idle' | 'signing' | 'confirming' | 'completed' | 'error';
 export type UseSwapExecutionResult = UseRelaySwapExecutionResult;
@@ -42,7 +43,7 @@ export function useUnifiedSwapExecution(
   // Provider type check for future flexibility
   // Currently only supports Relay
   if (providerType !== 'relay') {
-    console.warn(`Provider type "${providerType}" not supported. Using Relay execution.`);
+    debug.warn(`Provider type "${providerType}" not supported. Using Relay execution.`);
   }
 
   return relayExecution;

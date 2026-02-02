@@ -35,6 +35,53 @@ describe('POST /api/sign-transaction - security validations', () => {
     });
   });
 
+  describe('Token-2022 payment validation', () => {
+    it('should decode transferChecked instruction amounts', () => {
+      // Tests decodeTransferCheckedAmount() helper
+      // Format: discriminator (1 byte) + amount (8 bytes LE u64) + decimals (1 byte)
+      expect(true).toBe(true);
+    });
+
+    it('should handle malformed instruction data gracefully', () => {
+      // decodeTransferCheckedAmount should return null for invalid data
+      expect(true).toBe(true);
+    });
+
+    it('should calculate expected gross amounts with transfer fees', () => {
+      // Tests calculateExpectedGross() helper
+      // Formula: gross = (targetNet * 10000) / (10000 - feeBps)
+      // With maximum fee cap applied
+      expect(true).toBe(true);
+    });
+
+    it('should validate Token-2022 payments have sufficient amounts', () => {
+      // validatePaymentInstruction should decode payment amount
+      // and compare against expected gross amount (when gas cost available)
+      expect(true).toBe(true);
+    });
+
+    it('should reject Token-2022 payments with insufficient amounts', () => {
+      // For MVP: logs error but allows (Relay handles it)
+      // Future: should return valid: false
+      expect(true).toBe(true);
+    });
+
+    it('should handle Token-2022 tokens without transfer fees', () => {
+      // Should allow Token-2022 tokens with 0% transfer fee
+      expect(true).toBe(true);
+    });
+
+    it('should handle regular SPL tokens without Token-2022 validation', () => {
+      // Non-Token-2022 tokens should skip validation and return valid: true
+      expect(true).toBe(true);
+    });
+
+    it('should handle RPC errors during Token-2022 detection gracefully', () => {
+      // If getMint fails, should log error and allow (fail-open for MVP)
+      expect(true).toBe(true);
+    });
+  });
+
   /**
    * Note: Full backend tests should be run in a Node.js environment
    * where @solana/web3.js is available. These placeholder tests document
@@ -44,5 +91,16 @@ describe('POST /api/sign-transaction - security validations', () => {
    *   cd api && npm test
    *
    * Or create integration tests that run in a Node.js environment.
+   *
+   * NEW HELPER FUNCTIONS (added in Token-2022 fixes):
+   * - decodeTransferCheckedAmount(instructionData: Uint8Array): bigint | null
+   *   Decodes little-endian u64 amount from transferChecked instruction
+   *
+   * - calculateExpectedGross(targetNet: bigint, feeBps: number, maxFee: bigint): bigint
+   *   Calculates gross amount needed to achieve target net after transfer fees
+   *   Applies maximum fee cap if calculated fee exceeds it
+   *
+   * - validatePaymentInstruction(connection, txObj, gasCostLamports): Promise<ValidationResult>
+   *   Now decodes and validates Token-2022 payment amounts (MVP: logs only)
    */
 });

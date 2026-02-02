@@ -47,6 +47,7 @@ import { useSolanaClient } from '@/context/SolanaContext';
 import { convertRelayInstruction } from '@/services/solana';
 import { convertLamportsToToken } from '@/services/price';
 import { Token2022Service } from '@/services/token/Token2022Service';
+import { debug } from '@/utils/debug';
 import { calculateGrossAmount } from '@/services/token/Token2022Utils';
 import { env } from '@/config/env';
 import type { Quote, PreparedTransaction } from '@/services/bridge/types';
@@ -60,6 +61,36 @@ export interface UseRelaySwapExecutionResult {
   error: string | null;
   status: ExecutionStatus;
   reset: () => void;
+}
+
+/**
+ * Estimate compute units based on transaction complexity
+ *
+ * @param hasMemo - Whether the transaction includes a memo instruction
+ * @param isToken2022 - Whether the source token is a Token-2022 mint
+ * @param hasTransferFee - Whether the Token-2022 has transfer fees
+ * @returns Estimated compute unit limit with 2x safety margin
+ */
+function estimateComputeUnits(
+  hasMemo: boolean,
+  isToken2022: boolean,
+  hasTransferFee: boolean
+): number {
+  let units = 30_000; // Base transaction overhead
+
+  units += 5_000;  // Payment instruction
+  units += 5_000;  // Relay swap transfer
+
+  if (hasMemo) {
+    units += 700;  // Memo instruction
+  }
+
+  if (isToken2022 && hasTransferFee) {
+    units += 5_000;  // Additional Token-2022 fee extraction overhead
+  }
+
+  // Safety margin: 2x the estimated amount
+  return units * 2;
 }
 
 /**
@@ -178,54 +209,97 @@ export function useRelaySwapExecution(
         throw new Error('Gas cost is zero. This is unexpected for a cross-chain swap.');
       }
 
-      console.log('=== GAS PAYMENT CALCULATION ===');
-      console.log('Gas cost (lamports):', gasLamports.toString());
-      console.log('Gas cost (SOL):', Number(gasLamports) / 1e9);
-      console.log('Source token:', sourceTokenAddress);
-      console.log('Token decimals:', sourceTokenDecimals);
+      debug.log('=== GAS PAYMENT CALCULATION ===');
+      debug.log('Gas cost (lamports):', gasLamports.toString());
+      debug.log('Gas cost (SOL):', Number(gasLamports) / 1e9);
+      debug.log('Source token:', sourceTokenAddress);
+      debug.log('Token decimals:', sourceTokenDecimals);
 
       // 1c. Convert SOL lamports to token amount using Pyth
-      // Note: convertLamportsToToken already includes 10% buffer for price volatility
-      const baseTokenAmount = await convertLamportsToToken(
+      // Note: convertLamportsToToken includes 10% buffer for price volatility
+      // For Token-2022 with fees, we'll remove the buffer, apply gross-up, then reapply
+      // to prevent compounding (fee should not be calculated on buffered amount)
+      const bufferedTokenAmount = await convertLamportsToToken(
         gasLamports,
         sourceTokenAddress,
         sourceTokenDecimals
       );
 
-      console.log('=== TOKEN-2022 DETECTION ===');
-      console.log('Source token:', sourceTokenAddress);
+      debug.log('=== TOKEN-2022 DETECTION ===');
+      debug.log('Source token:', sourceTokenAddress);
 
       // 1d. Detect Token-2022 and apply gross-up if needed
-      const token2022Service = new Token2022Service(solanaClient, env.SOLANA_RPC_URL);
-      const tokenInfo = await token2022Service.detectToken2022(sourceTokenAddress);
+      let tokenInfo;
+      try {
+        const token2022Service = new Token2022Service(solanaClient, env.SOLANA_RPC_URL);
+        tokenInfo = await token2022Service.detectToken2022(sourceTokenAddress);
+      } catch (detectionError) {
+        debug.warn('Token-2022 detection failed, assuming regular SPL token:', detectionError);
+        tokenInfo = {
+          isToken2022: false,
+          transferFeePercent: null,
+          transferFeeBasisPoints: null,
+          maximumFee: null,
+          requiresMemoTransfers: false,
+        };
+      }
 
-      console.log('Is Token-2022:', tokenInfo.isToken2022);
-      console.log('Requires memo transfers:', tokenInfo.requiresMemoTransfers);
-      console.log('Transfer fee (bps):', tokenInfo.transferFeeBasisPoints);
-      console.log('Maximum fee:', tokenInfo.maximumFee?.toString());
+      debug.log('Is Token-2022:', tokenInfo.isToken2022);
+      debug.log('Requires memo transfers:', tokenInfo.requiresMemoTransfers);
+      debug.log('Transfer fee (bps):', tokenInfo.transferFeeBasisPoints);
+      debug.log('Maximum fee:', tokenInfo.maximumFee?.toString());
 
-      // Apply gross-up if Token-2022 with transfer fees
-      let tokenAmount = baseTokenAmount;
-      if (tokenInfo.isToken2022 && tokenInfo.transferFeeBasisPoints !== null && tokenInfo.maximumFee !== null) {
-        // Calculate gross amount so recipient receives baseTokenAmount after fees
+      // Calculate final payment amount
+      let tokenAmount: bigint;
+
+      if (tokenInfo.isToken2022 &&
+          tokenInfo.transferFeeBasisPoints !== null &&
+          tokenInfo.transferFeeBasisPoints > 0 &&  // Skip if 0% fee
+          tokenInfo.maximumFee !== null) {
+
+        // For Token-2022 with fees: Correct buffer application order
+        // IMPORTANT: Buffer must be applied AFTER gross-up, not before, to avoid semantic errors
+        //
+        // WRONG: buffer → gross-up (fee calculated on buffered amount)
+        //   buffered = 100 * 1.1 = 110
+        //   gross = 110 * 1.0526 = 115.79
+        //   Fee is on buffered amount (semantic error)
+        //
+        // CORRECT: gross-up → buffer (fee on actual target, buffer on result)
+        //   base = 100
+        //   gross = 100 * 1.0526 = 105.26 (fee on 100, not 110)
+        //   buffered = 105.26 * 1.1 = 115.79 (buffer on gross result)
+        //
+        // Steps:
+        // 1. Remove buffer to get base amount
+        // 2. Apply gross-up for transfer fees
+        // 3. Reapply buffer
+
+        const baseTokenAmount = (bufferedTokenAmount * 100n) / 110n;  // Remove 10% buffer
+
         const grossAmount = calculateGrossAmount(baseTokenAmount, {
           transferFeeBasisPoints: tokenInfo.transferFeeBasisPoints,
           maximumFee: tokenInfo.maximumFee,
         });
 
-        console.log('Transfer fee detected - applying gross-up calculation');
-        console.log('Base amount (net):', baseTokenAmount.toString());
-        console.log('Gross amount (with fee):', grossAmount.toString());
-        console.log('Additional fee:', (grossAmount - baseTokenAmount).toString());
+        tokenAmount = (grossAmount * 110n) / 100n;  // Reapply 10% buffer
 
-        tokenAmount = grossAmount;
+        debug.log('Transfer fee detected - applying gross-up calculation');
+        debug.log('Base amount (no buffer):', baseTokenAmount.toString());
+        debug.log('Gross amount (with fee, no buffer):', grossAmount.toString());
+        debug.log('Final amount (with fee + buffer):', tokenAmount.toString());
+        debug.log('Transfer fee:', (grossAmount - baseTokenAmount).toString());
+        debug.log('Buffer amount:', (tokenAmount - grossAmount).toString());
+
       } else {
-        console.log('No transfer fees - using base amount');
+        // For regular SPL tokens or Token-2022 without fees: use buffered amount as-is
+        tokenAmount = bufferedTokenAmount;
+        debug.log('No transfer fees - using buffered amount:', tokenAmount.toString());
       }
 
-      console.log('Payment amount (raw):', tokenAmount.toString());
-      console.log('Payment amount (token):', Number(tokenAmount) / Math.pow(10, sourceTokenDecimals));
-      console.log('===============================');
+      debug.log('Payment amount (raw):', tokenAmount.toString());
+      debug.log('Payment amount (token):', Number(tokenAmount) / Math.pow(10, sourceTokenDecimals));
+      debug.log('===============================');
 
       // 1e. Select correct token program based on token type
       // Token-2022 tokens require TOKEN_2022_PROGRAM_ADDRESS for ATA derivation and transfers
@@ -233,7 +307,7 @@ export function useRelaySwapExecution(
         ? TOKEN_2022_PROGRAM_ADDRESS
         : TOKEN_PROGRAM_ADDRESS;
 
-      console.log('Token program:', tokenProgramAddress);
+      debug.log('Token program:', tokenProgramAddress);
 
       // 1f. Get server wallet address (our fee payer)
       const serverWallet = env.SERVER_WALLET_PUBLIC_KEY;
@@ -281,7 +355,7 @@ export function useRelaySwapExecution(
           })
         : null;
 
-      console.log('Memo instruction required:', tokenInfo.requiresMemoTransfers);
+      debug.log('Memo instruction required:', tokenInfo.requiresMemoTransfers);
 
       // Step 2: Build transaction with PAYMENT FIRST (Instruction 0 Rule)
       const decoder = getTransactionDecoder();
@@ -305,14 +379,18 @@ export function useRelaySwapExecution(
           (ix) => ix.programAddress !== address('ComputeBudget111111111111111111111111111111')
         );
 
-        // Create our own ComputeBudget instruction with higher limit
-        // Default tx has ~30k CU. We need:
-        // - Payment instruction: ~5k CU
-        // - Relay swap transfer: ~5k CU
-        // - Memo (if required): ~700 CU
-        // Total: ~11k CU (or ~10k without memo), so set limit to 60k for safety
+        // Create our own ComputeBudget instruction with dynamic limit
+        // Estimate based on transaction complexity (Token-2022, memo, etc.)
+        const computeUnitLimit = estimateComputeUnits(
+          tokenInfo.requiresMemoTransfers,
+          tokenInfo.isToken2022,
+          tokenInfo.transferFeeBasisPoints !== null && tokenInfo.transferFeeBasisPoints > 0
+        );
+
+        debug.log('Compute unit limit:', computeUnitLimit);
+
         const computeBudgetIx = getSetComputeUnitLimitInstruction({
-          units: 60_000,
+          units: computeUnitLimit,
         });
 
         // Order: ComputeBudget FIRST, then Memo (if required), then payment, then Relay instructions
@@ -351,20 +429,20 @@ export function useRelaySwapExecution(
         );
 
         // DEBUG: Log transaction details
-        console.log('=== TRANSACTION DEBUG ===');
-        console.log('Total instructions:', allInstructions.length);
-        console.log('- Payment instruction (amount:', tokenAmount.toString(), ')');
-        console.log('- Relay instructions:', relayInstructions.length);
-        console.log('Fee payer:', serverWallet);
-        console.log('User address:', wallet.account.address);
-        console.log('Server destination ATA:', destinationTokenAccount);
-        console.log('Blockhash:', blockhash);
-        console.log('Transaction:', transaction);
-        console.log('========================');
+        debug.log('=== TRANSACTION DEBUG ===');
+        debug.log('Total instructions:', allInstructions.length);
+        debug.log('- Payment instruction (amount:', tokenAmount.toString(), ')');
+        debug.log('- Relay instructions:', relayInstructions.length);
+        debug.log('Fee payer:', serverWallet);
+        debug.log('User address:', wallet.account.address);
+        debug.log('Server destination ATA:', destinationTokenAccount);
+        debug.log('Blockhash:', blockhash);
+        debug.log('Transaction:', transaction);
+        debug.log('========================');
 
         // SIMULATION: Test transaction before signing to see actual error
         try {
-          console.log('=== SIMULATING TRANSACTION ===');
+          debug.log('=== SIMULATING TRANSACTION ===');
           const encodedForSim = encoder.encode(transaction);
           const bytesForSim = new Uint8Array(
             encodedForSim.buffer,
@@ -373,21 +451,21 @@ export function useRelaySwapExecution(
           );
 
           const simulation = await solanaClient.simulateTransaction(bytesForSim);
-          console.log('Simulation result:', simulation);
-          console.log('Simulation logs:', simulation.logs);
+          debug.log('Simulation result:', simulation);
+          debug.log('Simulation logs:', simulation.logs);
 
           // Check for simulation errors
           if (simulation.err) {
-            console.error('⚠️ SIMULATION ERROR:', simulation.err);
-            console.error('Logs:', simulation.logs);
+            debug.error('⚠️ SIMULATION ERROR:', simulation.err);
+            debug.error('Logs:', simulation.logs);
             // Note: We log the error but don't block execution
             // This is for debugging - production may want to block if simulation fails
           } else {
-            console.log('✓ Simulation succeeded');
+            debug.log('✓ Simulation succeeded');
           }
-          console.log('==============================');
+          debug.log('==============================');
         } catch (simErr) {
-          console.error('Simulation failed:', simErr);
+          debug.error('Simulation failed:', simErr);
           // Note: Simulation failure doesn't block execution
           // User may still want to try the transaction
         }
@@ -431,10 +509,10 @@ export function useRelaySwapExecution(
       const serverSignedTx = decoder.decode(new Uint8Array(serverSignedBytes));
 
       // DEBUG: Log server-signed transaction
-      console.log('=== SERVER-SIGNED TRANSACTION ===');
-      console.log('Server signed tx:', serverSignedTx);
-      console.log('Signatures:', serverSignedTx.signatures);
-      console.log('=================================');
+      debug.log('=== SERVER-SIGNED TRANSACTION ===');
+      debug.log('Server signed tx:', serverSignedTx);
+      debug.log('Signatures:', serverSignedTx.signatures);
+      debug.log('=================================');
 
       // Step 5: USER SIGNS the server-signed transaction (adds second signature)
       const userSignedTx = await wallet.signTransaction(

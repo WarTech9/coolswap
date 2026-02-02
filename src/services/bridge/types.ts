@@ -13,18 +13,55 @@ export interface Chain {
   blockExplorerUrl?: string;
 }
 
-export interface Token {
+/**
+ * Base token properties (always present)
+ */
+interface BaseToken {
   address: string;
   symbol: string;
   name: string;
   decimals: number;
   chainId: string;
   logoUri?: string;
-  isToken2022?: boolean;
-  transferFeePercent?: number;
-  transferFeeBasisPoints?: number;
-  maximumFee?: bigint;
 }
+
+/**
+ * Token type with discriminated union for Token-2022 state
+ *
+ * Valid states:
+ * 1. Regular SPL token: { isToken2022: false }
+ * 2. Token-2022 without fees: { isToken2022: true, transferFeePercent: null, ... }
+ * 3. Token-2022 with fees: { isToken2022: true, transferFeePercent: number, ... }
+ *
+ * This prevents invalid states like:
+ * - Token-2022 with missing fee data
+ * - Regular token with fee data
+ * - Partial fee data
+ */
+export type Token = BaseToken & (
+  // Regular SPL token (no Token-2022 properties)
+  | {
+      isToken2022: false;
+    }
+
+  // Token-2022 without transfer fees
+  | {
+      isToken2022: true;
+      transferFeePercent: null;
+      transferFeeBasisPoints: null;
+      maximumFee: null;
+      requiresMemoTransfers?: boolean;
+    }
+
+  // Token-2022 with transfer fees (all three required)
+  | {
+      isToken2022: true;
+      transferFeePercent: number;
+      transferFeeBasisPoints: number;
+      maximumFee: bigint;
+      requiresMemoTransfers?: boolean;
+    }
+);
 
 export interface QuoteRequest {
   sourceChainId: string;

@@ -57,6 +57,12 @@ interface PythPriceResponse {
  * @param tokenMint - Target token mint address
  * @param tokenDecimals - Target token decimals
  * @returns Token amount in raw units (with 10% buffer for price fluctuations)
+ *
+ * NOTE: For Token-2022 tokens with transfer fees, the caller should:
+ * 1. Remove this buffer: (result * 100n) / 110n
+ * 2. Apply gross-up for transfer fees
+ * 3. Reapply buffer: (grossAmount * 110n) / 100n
+ * This prevents fee compounding on the buffered amount.
  */
 export async function convertLamportsToToken(
   lamports: bigint,
@@ -112,6 +118,7 @@ export async function convertLamportsToToken(
   const tokenAmount = usdValue / tokenPrice;
 
   // Add 10% buffer to account for price fluctuations between quote and execution
+  // For Token-2022, this buffer is removed, fees applied, then reapplied (see useRelaySwapExecution)
   const rawAmount = Math.ceil(tokenAmount * 1.1 * Math.pow(10, tokenDecimals));
 
   return BigInt(rawAmount);
