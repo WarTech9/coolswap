@@ -78,6 +78,9 @@ Vercel automatically deploys functions in the `api/` directory as serverless end
 # Run Vercel dev server
 vercel dev
 
+# Or use the development server with TypeScript support
+pnpm dev
+
 # API available at:
 # http://localhost:3000/api/sign-transaction
 ```
@@ -179,7 +182,7 @@ export async function middleware(request) {
 **Cause**: `SERVER_WALLET_SECRET_KEY` not set or invalid
 
 **Fix**:
-1. Generate wallet: `node scripts/generate-server-wallet.js`
+1. Generate wallet: `tsx scripts/generate-server-wallet.ts`
 2. Copy secret key array to Vercel environment variables
 3. Redeploy
 
@@ -204,7 +207,7 @@ export async function middleware(request) {
 
 ## Resources
 
-- [Gas Sponsorship Architecture](../docs/coolswap-gas-sponsor-server.md) - Comprehensive documentation of server wallet implementation
+- [Gas Sponsorship Architecture](../docs/coolswap-gas-sponsorship.md) - Comprehensive documentation of server wallet implementation
 - [Vercel Serverless Functions](https://vercel.com/docs/functions)
 - [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/)
 - [Relay API Documentation](https://docs.relay.link/)

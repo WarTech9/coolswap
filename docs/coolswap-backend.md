@@ -242,12 +242,13 @@ const transaction = buildTransaction({
 **Status:** ✅ Complete
 
 Files created:
-- [x] `api/sign-transaction.js` - Serverless signing endpoint
-- [x] `api/package.json` - API dependencies (@solana/web3.js)
+- [x] `api/sign-transaction.ts` - Serverless signing endpoint
+- [x] `api/package.json` - API dependencies (@solana/web3-compat)
+- [x] `api/tsconfig.json` - TypeScript configuration
 - [x] `vercel.json` - Deployment configuration
 - [x] `.vercelignore` - Deployment exclusions
 - [x] `.gitignore` - Updated with server wallet exclusions
-- [x] `scripts/generate-server-wallet.js` - Wallet generation script
+- [x] `scripts/generate-server-wallet.ts` - Wallet generation script
 - [x] `VERCEL_DEPLOYMENT.md` - Complete deployment guide
 - [x] `api/README.md` - API documentation
 - [x] `.env.example` - Updated with new variables
@@ -272,7 +273,7 @@ npm install @solana/web3.js
 cd ..
 
 # Generate wallet
-node scripts/generate-server-wallet.js
+tsx scripts/generate-server-wallet.ts
 ```
 
 **Expected Output:**
@@ -667,7 +668,7 @@ Server wallet will accumulate gas payment tokens (USDC, etc.). Periodically:
 
 #### Step 6.1: Implement Rate Limiting
 
-Add to `api/sign-transaction.js`:
+Add to `api/sign-transaction.ts`:
 
 ```javascript
 // Track requests by IP
@@ -696,7 +697,7 @@ export default async function handler(req, res) {
 
 #### Step 6.2: Enhanced Transaction Validation
 
-Add stricter validation in `api/sign-transaction.js`:
+Add stricter validation in `api/sign-transaction.ts`:
 
 ```javascript
 // Validate payment amount is reasonable
@@ -793,8 +794,9 @@ Implementation is complete when:
 ```
 coolswap/
 ├── api/                          # ← NEW: Serverless functions
-│   ├── sign-transaction.js       # Transaction signing endpoint
-│   └── package.json              # API dependencies
+│   ├── sign-transaction.ts       # Transaction signing endpoint
+│   ├── package.json              # API dependencies
+│   └── tsconfig.json             # TypeScript configuration
 ├── src/                          # Existing frontend
 ├── vercel.json                   # ← NEW: Vercel config
 ├── .vercelignore                 # ← NEW: Deployment exclusions
@@ -821,7 +823,7 @@ coolswap/
 }
 ```
 
-**Implementation** (`api/sign-transaction.js`):
+**Implementation** (`api/sign-transaction.ts`):
 
 ```javascript
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
@@ -1190,8 +1192,8 @@ console.log('Transaction built:', {
 });
 ```
 
-**Backend** (`api/sign-transaction.js`):
-```javascript
+**Backend** (`api/sign-transaction.ts`):
+```typescript
 console.log('Signing request received:', {
   txSize: txBuffer.length,
   timestamp: new Date().toISOString(),
@@ -1249,7 +1251,7 @@ vercel logs --follow
 - **Frontend Hook**: `src/hooks/useRelaySwapExecution.ts`
 - **Price Service**: `src/services/price/PriceService.ts`
 - **Transaction Builder**: `src/services/solana/buildRelayTransaction.ts`
-- **Backend Endpoint**: `api/sign-transaction.js`
+- **Backend Endpoint**: `api/sign-transaction.ts`
 
 ### Architecture Decisions
 - **ADR-001**: Instruction 0 Rule (payment first)

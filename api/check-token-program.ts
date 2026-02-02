@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env.local') });
 
-async function checkTokenProgram(mintAddress) {
+async function checkTokenProgram(mintAddress: string): Promise<void> {
   const rpcUrl = process.env.VITE_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
   const connection = new Connection(rpcUrl, 'confirmed');
 
@@ -52,7 +52,7 @@ async function checkTokenProgram(mintAddress) {
     for (const [programName, programId] of [
       ['SPL Token', TOKEN_PROGRAM_ID],
       ['Token-2022', TOKEN_2022_PROGRAM_ID]
-    ]) {
+    ] as const) {
       try {
         const ata = await getAssociatedTokenAddress(
           mint,
@@ -71,14 +71,16 @@ async function checkTokenProgram(mintAddress) {
           try {
             const accountData = await getAccount(connection, ata, 'confirmed', programId);
             console.log(`  Balance:`, accountData.amount.toString());
-          } catch (e) {
-            console.log(`  ⚠️  Could not read account data:`, e.message);
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Unknown error';
+            console.log(`  ⚠️  Could not read account data:`, message);
           }
         } else {
           console.log(`  ❌ ATA does NOT exist`);
         }
-      } catch (err) {
-        console.log(`\n${programName}: Error -`, err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.log(`\n${programName}: Error -`, message);
       }
     }
   }

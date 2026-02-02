@@ -45,9 +45,9 @@ for TOKEN_ENTRY in "${TOKENS[@]}"; do
   echo "Address: $TOKEN_ADDRESS"
   echo ""
 
-  # Run the create-server-ata.js script
-  if node api/create-server-ata.js "$TOKEN_ADDRESS"; then
-    if grep -q "already exists" <<< "$(node api/create-server-ata.js "$TOKEN_ADDRESS" 2>&1)"; then
+  # Run the create-server-ata.ts script
+  if tsx api/create-server-ata.ts "$TOKEN_ADDRESS"; then
+    if grep -q "already exists" <<< "$(tsx api/create-server-ata.ts "$TOKEN_ADDRESS" 2>&1)"; then
       echo "✅ Skipped (already exists)"
       ((SKIP_COUNT++))
     else

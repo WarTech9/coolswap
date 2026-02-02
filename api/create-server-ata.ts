@@ -18,15 +18,19 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env.local') });
 
 // Common token mints on Solana mainnet
-const COMMON_TOKENS = {
+const COMMON_TOKENS: Record<string, string> = {
   USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
   SOL: 'So11111111111111111111111111111111111111112', // Wrapped SOL
 };
 
-async function createATA(tokenMint) {
+async function createATA(tokenMint: string): Promise<void> {
   // 1. Load server wallet
-  const secretKeyArray = JSON.parse(process.env.SERVER_WALLET_SECRET_KEY);
+  const secretKey = process.env.SERVER_WALLET_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('SERVER_WALLET_SECRET_KEY environment variable is not set');
+  }
+  const secretKeyArray = JSON.parse(secretKey);
   const serverKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
 
   console.log('\n📍 Server wallet:', serverKeypair.publicKey.toBase58());

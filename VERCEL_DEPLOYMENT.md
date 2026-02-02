@@ -14,7 +14,7 @@ Simple guide to deploy CoolSwap to Vercel (frontend + backend serverless functio
 ## Pre-Deployment Checklist
 
 ### 1. Merge Backend to Main
-The backend serverless function (`/api/sign-transaction.js`) is currently on a feature branch.
+The backend serverless function (`/api/sign-transaction.ts`) is currently on a feature branch.
 **You MUST merge the PR to main before deploying.**
 
 ### 2. Verify Server Wallet
@@ -127,8 +127,9 @@ vercel logs --follow
 ```
 coolswap/
 ├── api/
-│   ├── sign-transaction.js       # Backend signing endpoint
-│   └── package.json              # API dependencies
+│   ├── sign-transaction.ts       # Backend signing endpoint
+│   ├── package.json              # API dependencies
+│   └── tsconfig.json             # TypeScript configuration
 ├── src/                          # Frontend React app
 ├── vercel.json                   # Vercel config (CORS, timeouts)
 ├── .vercelignore                 # Deployment exclusions

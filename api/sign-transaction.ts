@@ -11,9 +11,10 @@
  * Note: Uses @solana/web3.js for simpler API in Node.js backend
  */
 
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS handling
   const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
     ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { transaction } = req.body;
+    const { transaction } = req.body as { transaction?: string };
 
     if (!transaction) {
       return res.status(400).json({ error: 'Missing transaction parameter' });
@@ -72,7 +73,10 @@ export default async function handler(req, res) {
       // DEBUG: Log transaction details
       console.log('=== BACKEND: Received Transaction ===');
       console.log('Instructions:', txObj.message.compiledInstructions.length);
-      console.log('Fee payer:', txObj.message.staticAccountKeys[0].toBase58());
+      const firstAccount = txObj.message.staticAccountKeys[0];
+      if (firstAccount) {
+        console.log('Fee payer:', firstAccount.toBase58());
+      }
       console.log('Account keys:', txObj.message.staticAccountKeys.length);
       console.log('=====================================');
     } catch (err) {
@@ -84,6 +88,9 @@ export default async function handler(req, res) {
 
     // 1. Check that server wallet is the fee payer (first account in message)
     const feePayer = txObj.message.staticAccountKeys[0];
+    if (!feePayer) {
+      return res.status(400).json({ error: 'Transaction has no fee payer' });
+    }
     const serverAddress = serverKeypair.publicKey;
 
     if (!feePayer.equals(serverAddress)) {

@@ -14,14 +14,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env.local') });
 
-import express from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 
-const app = express();
+const app: Express = express();
 const PORT = 3001;
 
 // Configure CORS from environment variable
-const corsOrigin = process.env.CORS_ORIGIN
+const corsOrigin: string | string[] = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : '*';
 
@@ -32,10 +32,16 @@ app.use(cors({
 app.use(express.json());
 
 // Import the sign-transaction handler
-import signTransactionHandler from './sign-transaction.js';
+import signTransactionHandler from './sign-transaction';
+import type { Request, Response } from 'express';
 
-// Mount the API endpoint
-app.post('/api/sign-transaction', signTransactionHandler);
+// Mount the API endpoint - Wrap Vercel handler for Express compatibility
+app.post('/api/sign-transaction', async (req: Request, res: Response) => {
+  // Adapt Express req/res to match Vercel's interface
+  const vercelReq = req as any;
+  const vercelRes = res as any;
+  await signTransactionHandler(vercelReq, vercelRes);
+});
 
 app.listen(PORT, () => {
   console.log(`\n✅ API Server running on http://localhost:${PORT}`);
