@@ -137,8 +137,8 @@ SERVER_WALLET_SECRET_KEY=[1,2,3,...]                 # Server wallet private key
 
 **Local Development:**
 - Leave `VITE_BACKEND_URL` empty - Vite proxies `/api/*` to `localhost:3001`
-- Run backend separately: `node api/dev-server.js`
-- Generate server wallet: `node api/generate-server-wallet.js`
+- Run backend separately: `pnpm dev` (in api directory)
+- Generate server wallet: `tsx scripts/generate-server-wallet.ts`
 
 **Production:**
 - Set `VITE_BACKEND_URL` to your Vercel deployment URL
@@ -161,9 +161,10 @@ src/
 └── __tests__/      # Test files
 
 api/
-├── sign-transaction.js    # Vercel serverless: server-first signing
-├── dev-server.js          # Local development server (port 3001)
-└── create-server-ata.js   # Helper script for server token accounts
+├── sign-transaction.ts    # Vercel serverless: server-first signing
+├── dev-server.ts          # Local development server (port 3001)
+├── create-server-ata.ts   # Helper script for server token accounts
+└── tsconfig.json          # TypeScript configuration
 ```
 
 ## Architecture Details
@@ -172,15 +173,18 @@ api/
 The app uses an `IBridgeProvider` interface supporting multiple bridges. Currently uses **Relay Protocol** as the primary provider. The abstraction allows swapping providers without changing application code.
 
 **Backend Components** (Vercel Serverless)
-- `/api/sign-transaction.js` - Validates and partially signs transactions with server wallet
-- `/api/dev-server.js` - Local development server (port 3001)
-- `/api/create-server-ata.js` - Helper to create server token accounts (for receiving gas payments)
-- `/api/generate-server-wallet.js` - Utility to generate new server wallet keypair
+- `/api/sign-transaction.ts` - Validates and partially signs transactions with server wallet
+- `/api/dev-server.ts` - Local development server (port 3001)
+- `/api/create-server-ata.ts` - Helper to create server token accounts (for receiving gas payments)
+- `/scripts/generate-server-wallet.ts` - Utility to generate new server wallet keypair
 
 **Key Frontend Services**
 - `RelayProvider` - Relay API integration with `depositFeePayer` support
 - `useRelaySwapExecution` - Transaction building with server-first signing flow
 - `PriceService` - Pyth oracle integration for SOL → token conversion (gas payment calculation)
+
+**Detailed Documentation**
+- [Gas Sponsorship Architecture](docs/coolswap-gas-sponsorship.md) - Complete technical documentation of the server wallet gas sponsorship implementation
 
 ## License
 

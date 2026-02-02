@@ -4,7 +4,7 @@
  * Also displays order tracking after transaction confirmation
  */
 
-import type { ExecutionStatus } from '@/hooks/useSwapExecution';
+import type { ExecutionStatus } from '@/hooks/useUnifiedSwapExecution';
 import type { OrderInfo } from '@/services/bridge/types';
 import { OrderStatus } from '@/services/bridge/types';
 

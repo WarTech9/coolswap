@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CoolSwap is a cross-chain swap dApp enabling swaps from **Solana (SPL tokens)** to **any EVM chain** via deBridge DLN API. The sponsor wallet pays Solana-side gas costs, with economic guarantees ensuring the sponsor never loses funds.
+CoolSwap is a cross-chain swap dApp enabling swaps from **Solana (SPL tokens)** to **any EVM chain** via Relay. The server wallet pays Solana-side gas costs and receives token reimbursements through Relay's depositFeePayer mechanism.
 
 ## Tech Stack
 
@@ -36,17 +36,17 @@ pnpm lint            # Run linter
 
 ### Bridge Provider Abstraction
 
-The app uses an abstraction layer (`IBridgeProvider` interface) so deBridge can be swapped for Relay later:
+The app uses an abstraction layer (`IBridgeProvider` interface) for potential future provider implementations:
 
 ```
 src/services/bridge/
 ├── types.ts              # Shared interfaces (Chain, Token, Quote, etc.)
 ├── IBridgeProvider.ts    # Abstract interface
-├── DeBridgeProvider.ts   # deBridge implementation (MVP)
+├── RelayProvider.ts      # Relay implementation (current)
 ├── BridgeProviderFactory.ts
 ```
 
-App uses **normalized chain IDs** (`"solana"`, `"arbitrum"`). Each provider maps these internally (deBridge uses `7565164` for Solana).
+App uses **normalized chain IDs** (`"solana"`, `"arbitrum"`, etc.). Each provider maps these internally.
 
 ### Key Directories
 
@@ -56,41 +56,28 @@ App uses **normalized chain IDs** (`"solana"`, `"arbitrum"`). Each provider maps
 - `src/context/` - SwapContext state management
 - `src/config/` - Chain configs, environment variables
 
-## deBridge API Integration
+## Relay API Integration
 
-**Base URLs**:
-- DLN API: `https://dln.debridge.finance/v1.0`
-- Stats API: `https://dln-api.debridge.finance/api`
+**Base URL**: `https://api.relay.link`
 
-### Critical Parameter
+### Gas Sponsorship Flow
 
-**Always set `prependOperatingExpenses=true`** in create-tx calls. This ensures:
-- Sponsor costs are added to user's input amount
-- All fees deducted from input token
-- No separate SOL transfers needed
-- Sponsor never loses funds
+Uses Relay's `depositFeePayer` mechanism for zero-SOL swaps:
+1. User approves token transfer and bridge transaction
+2. Server wallet pays SOL fees upfront
+3. Bridge provider deducts equivalent tokens from user's deposit
+4. Server wallet receives token reimbursement automatically
 
 ### Quote + Transaction Flow
 
-deBridge's `create-tx` returns both quote and transaction together. Don't make separate calls. Sign and submit within **30 seconds** or refresh the quote.
+Relay provides unified quote endpoint. Transactions expire after **30 seconds** - refresh if needed.
 
 ### Transaction Processing (Solana Source)
 
-1. Decode hex: `Buffer.from(tx.data.slice(2), 'hex')`
-2. Deserialize: `VersionedTransaction.deserialize(buffer)`
-3. Update priority fee at instruction[1]
-4. Update `recentBlockhash`
-5. Sign and submit
-
-### deBridge Chain IDs
-
-| Chain | ID |
-|-------|-----|
-| Solana | 7565164 |
-| Ethereum | 1 |
-| Arbitrum | 42161 |
-| Base | 8453 |
-| Polygon | 137 |
+1. User signs transaction with wallet
+2. Server adds its signature as fee payer
+3. Backend submits combined transaction to Solana
+4. Fee reimbursement happens automatically via Relay
 
 ## Token-2022 Handling
 
@@ -101,7 +88,7 @@ Detect Token-2022 mints at runtime:
 
 ## Testing
 
-- Use mocks/stubs for deBridge API and Solana RPC
+- Use mocks/stubs for Relay API and Solana RPC
 - No devnet integration tests for MVP
 - Mock fixtures in `src/__tests__/fixtures/`
 
@@ -111,10 +98,9 @@ Detect Token-2022 mints at runtime:
 - Recovery from partial failures
 - Multiple simultaneous swaps
 - Transaction history persistence
-- Relay provider (stub only)
 
 ## Reference Docs
 
-- deBridge: https://docs.debridge.com/dln-details/integration-guidelines/order-creation/creating-order/creating-order
+- Relay: https://docs.relay.link
 - Solana frontend: https://solana.com/docs/frontend
 - @solana/react-hooks: https://github.com/solana-foundation/framework-kit/tree/main/packages/react-hooks

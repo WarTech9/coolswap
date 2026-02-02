@@ -5,7 +5,6 @@ import { BridgeProvider } from './context/BridgeContext';
 import { TokenProvider } from './context/TokenContext';
 import { WalletProvider, useWalletContext } from './context/WalletContext';
 import { SwapProvider, useSwapContext } from './context/SwapContext';
-import { GasSponsorProvider } from './context/GasSponsorContext';
 import { WalletButton } from './components/wallet/WalletButton';
 import { WalletSelectorModal } from './components/wallet/WalletSelectorModal';
 import { TokenSelector } from './components/token';
@@ -353,11 +352,10 @@ function App() {
       }}
     >
       <SolanaClientProvider>
-        <GasSponsorProvider>
-          <BridgeProvider>
-            <TokenProvider>
-              <WalletProvider>
-                <SwapProvider>
+        <BridgeProvider>
+          <TokenProvider>
+            <WalletProvider>
+              <SwapProvider>
                   <div className="min-h-screen bg-gradient-to-br from-[#E8F4F8] via-[#DFF0F5] to-[#D6EAF8] relative overflow-hidden">
                     {/* Snowfall animation layer */}
                     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -416,7 +414,6 @@ function App() {
               </WalletProvider>
             </TokenProvider>
           </BridgeProvider>
-        </GasSponsorProvider>
       </SolanaClientProvider>
     </SolanaHooksProvider>
   );

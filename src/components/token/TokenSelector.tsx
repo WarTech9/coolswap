@@ -36,8 +36,13 @@ export function TokenSelector({
 
   if (isLoading) {
     return (
-      <div className="bg-white/60 rounded-lg p-3 animate-pulse border border-winter-border backdrop-blur-lg">
-        <div className="h-6 bg-white/40 rounded w-24" />
+      <div className="relative bg-white/60 rounded-lg p-3 border border-winter-border backdrop-blur-lg overflow-hidden">
+        {/* Shimmer overlay */}
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-winter-border/50 animate-pulse" />
+          <span className="text-winter-textSecondary text-sm">Loading tokens...</span>
+        </div>
       </div>
     );
   }

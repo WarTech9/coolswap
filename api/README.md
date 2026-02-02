@@ -172,25 +172,6 @@ export async function middleware(request) {
 }
 ```
 
-## Costs
-
-### Vercel Serverless Functions
-
-**Free Tier**:
-- 100 hours execution time/month
-- ~360,000 invocations (assuming 1s avg duration)
-
-**Pro Tier** ($20/month):
-- 1,000 hours execution time/month
-- Faster cold starts
-- More concurrent executions
-
-### Server Wallet SOL
-
-- ~0.00001 SOL per transaction fee
-- 1 SOL = ~100,000 transactions
-- Recommended: Keep 1-5 SOL balance
-
 ## Troubleshooting
 
 ### "Server configuration error"
@@ -220,47 +201,10 @@ export async function middleware(request) {
 2. Fund wallet with SOL
 3. Retry transaction
 
-## Development
-
-### Adding New Endpoints
-
-Create a new file in `api/`:
-
-```javascript
-// api/new-endpoint.js
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Your logic here
-
-  return res.status(200).json({ success: true });
-}
-```
-
-Automatically available at `/api/new-endpoint`.
-
-### Testing Locally
-
-```bash
-# Install dependencies
-cd api
-npm install
-
-# Run Vercel dev server (from project root)
-cd ..
-vercel dev
-
-# Test endpoint
-curl -X POST http://localhost:3000/api/sign-transaction \
-  -H "Content-Type: application/json" \
-  -d '{"transaction": "test"}'
-```
 
 ## Resources
 
+- [Gas Sponsorship Architecture](../docs/coolswap-gas-sponsor-server.md) - Comprehensive documentation of server wallet implementation
 - [Vercel Serverless Functions](https://vercel.com/docs/functions)
 - [Solana Web3.js](https://solana-labs.github.io/solana-web3.js/)
 - [Relay API Documentation](https://docs.relay.link/)
-- [CoolSwap Backend Architecture](../docs/coolswap-backend.md)

@@ -1,17 +1,11 @@
 /**
- * Hook to estimate gas fee for swaps
- * - For Relay: Uses Pyth price conversion (gasSolLamports → token amount)
- * - For deBridge: Uses Kora estimation service
- *
- * This ensures accurate gas fee display across both bridge providers.
+ * Hook to estimate gas fee for Relay swaps
+ * Uses Pyth price conversion (gasSolLamports → token amount)
  */
 
 import { useState, useEffect } from 'react';
-import { getTransactionDecoder, getTransactionEncoder } from '@solana/transactions';
-import { useGasSponsorService } from '@/context/GasSponsorContext';
 import { convertLamportsToToken } from '@/services/price';
-import type { Quote, PreparedTransaction } from '@/services/bridge/types';
-import { hexToBytes } from './useSwapExecution';
+import type { Quote } from '@/services/bridge/types';
 
 export interface GasFeeEstimate {
   lamports: bigint;
@@ -36,7 +30,6 @@ export function useGasFee(
   const [tokenAmount, setTokenAmount] = useState<bigint>(BigInt(0));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const gasSponsor = useGasSponsorService();
 
   useEffect(() => {
     // Reset state when quote or token changes
@@ -47,101 +40,38 @@ export function useGasFee(
       return;
     }
 
-    const txData = quote.transactionData as PreparedTransaction;
-
-    // Check if we have transaction data in either format
-    const hasHexData = txData?.data && typeof txData.data === 'string';
-    const hasInstructions = txData?.instructions && txData.instructions.length > 0;
-
-    // For Relay transactions (instructions format), use Pyth price conversion
-    // instead of Kora estimation. This bypasses Kora's simulation which fails
-    // for Relay's depositFeePayer flow.
-    if (hasInstructions) {
-      const estimateRelayGas = async () => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-          // Get gas cost from Relay quote (in lamports)
-          if (!quote.fees?.gasSolLamports) {
-            throw new Error('Gas cost not available in Relay quote');
-          }
-
-          const gasLamports = BigInt(quote.fees.gasSolLamports);
-
-          // Convert lamports to token amount using Pyth
-          const tokenAmount = await convertLamportsToToken(
-            gasLamports,
-            sourceTokenAddress,
-            sourceTokenDecimals
-          );
-
-          setLamports(gasLamports);
-          setTokenAmount(tokenAmount);
-          setIsLoading(false);
-        } catch (err) {
-          console.error('Failed to estimate Relay gas fee:', err);
-          setError(err instanceof Error ? err.message : 'Failed to estimate gas fee');
-          // Set reasonable defaults
-          setLamports(BigInt(quote.fees?.gasSolLamports || '5000'));
-          setTokenAmount(BigInt(0));
-          setIsLoading(false);
-        }
-      };
-
-      estimateRelayGas();
-      return;
-    }
-
-    // Need hex data for Kora estimation (deBridge format)
-    if (!hasHexData) {
+    // Relay quotes include gasSolLamports
+    if (!quote.fees?.gasSolLamports) {
+      setError('Gas cost not available in quote');
       return;
     }
 
     let cancelled = false;
 
-    const estimateFee = async () => {
+    const estimateGasFee = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Decode pre-serialized hex transaction (deBridge format)
-        const txBytes = hexToBytes(txData.data!);
-        const decoder = getTransactionDecoder();
-        const transaction = decoder.decode(txBytes);
+        const gasLamports = BigInt(quote.fees.gasSolLamports!);
 
-        // Encode to base64 for Kora
-        const encoder = getTransactionEncoder();
-        const encodedBytes = encoder.encode(
-          transaction as unknown as Parameters<typeof encoder.encode>[0]
-        );
-        // Convert ReadonlyUint8Array to regular Uint8Array for Buffer
-        const encodedBytesArray = new Uint8Array(encodedBytes.buffer, encodedBytes.byteOffset, encodedBytes.byteLength);
-        const txBase64 = Buffer.from(encodedBytesArray).toString('base64');
-
-        // Estimate fee via Kora
-        const estimate = await gasSponsor.estimateFee(
-          txBase64,
-          sourceTokenAddress
+        // Convert lamports to token amount using Pyth price oracle
+        const tokenAmount = await convertLamportsToToken(
+          gasLamports,
+          sourceTokenAddress,
+          sourceTokenDecimals
         );
 
         if (!cancelled) {
-          setLamports(estimate.lamports);
-          setTokenAmount(estimate.tokenAmount);
+          setLamports(gasLamports);
+          setTokenAmount(tokenAmount);
         }
       } catch (err) {
         if (!cancelled) {
-          // Detailed error logging for debugging Kora integration
-          console.error('Failed to estimate gas fee:', {
-            error: err,
-            message: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
-            sourceToken: sourceTokenAddress,
-            quoteId: quote?.id,
-          });
+          console.error('Failed to estimate gas fee:', err);
           setError(err instanceof Error ? err.message : 'Failed to estimate gas fee');
-          // Set reasonable defaults on error
-          setLamports(BigInt(5000)); // ~5000 lamports typical
+          // Set reasonable defaults
+          setLamports(BigInt(quote.fees.gasSolLamports || '5000'));
           setTokenAmount(BigInt(0));
         }
       } finally {
@@ -151,12 +81,12 @@ export function useGasFee(
       }
     };
 
-    estimateFee();
+    estimateGasFee();
 
     return () => {
       cancelled = true;
     };
-  }, [quote, sourceTokenAddress, gasSponsor]);
+  }, [quote, sourceTokenAddress, sourceTokenDecimals]);
 
   return {
     lamports,
